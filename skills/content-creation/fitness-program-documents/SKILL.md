@@ -293,6 +293,27 @@ for i, row in enumerate(result.get('values', []), 1):
         print(f'Row {i} (0-indexed {i-1}): {row[0][:60]}')
 ```
 
+**Alignment rule:** merged single-cell rows must always be **left-aligned**. After merging, apply a `repeatCell` request setting `horizontalAlignment: LEFT` across the same row range. Centered text on these rows is wrong.
+
+```python
+requests += [
+    {
+        'repeatCell': {
+            'range': {
+                'sheetId': SHEET_ID,
+                'startRowIndex': r,
+                'endRowIndex': r + 1,
+                'startColumnIndex': 0,
+                'endColumnIndex': 6
+            },
+            'cell': {'userEnteredFormat': {'horizontalAlignment': 'LEFT'}},
+            'fields': 'userEnteredFormat.horizontalAlignment'
+        }
+    }
+    for r in rows_to_merge
+]
+```
+
 **Blair Fitness Profile — Training tab merged rows (July 2026):**
 - Rows 1–5: client metadata (name, goal, duration, days, location)
 - Rows 7–8, 10–12: Phase 1 & 2 headers + focus notes
