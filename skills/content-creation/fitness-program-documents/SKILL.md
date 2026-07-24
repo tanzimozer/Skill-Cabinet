@@ -282,16 +282,18 @@ service.spreadsheets().batchUpdate(
 
 **How to identify rows that need merging:**
 ```python
-# Fetch all rows, flag single-cell entries
+# Always scan beyond expected rows — use A1:F200 to catch late-sheet additions
 result = service.spreadsheets().values().get(
     spreadsheetId=SPREADSHEET_ID,
-    range='Training!A1:F65'
+    range='Training!A1:F200'  # never cap at a fixed row — sections get added at the bottom
 ).execute()
 
 for i, row in enumerate(result.get('values', []), 1):
     if len(row) == 1 and row[0].strip():
         print(f'Row {i} (0-indexed {i-1}): {row[0][:60]}')
 ```
+
+⚠️ **Pitfall:** Scanning a fixed range (e.g. A1:F65) misses rows added below. Blair's Pilates/Active Recovery section (rows 72–73) was missed on first pass for this reason. Always use a generous upper bound.
 
 **Alignment rule:** merged single-cell rows must always be **left-aligned**. After merging, apply a `repeatCell` request setting `horizontalAlignment: LEFT` across the same row range. Centered text on these rows is wrong.
 
