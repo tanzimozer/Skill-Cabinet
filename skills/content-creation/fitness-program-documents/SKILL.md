@@ -201,6 +201,105 @@ table th {
 8. **Quick Reference** - Notation guides, scales, timing
 9. **Execution Reminders** - Key tactical checkpoints
 
+## Google Sheets — Merge Note Rows
+
+When a workout spreadsheet has single-cell "Note:" rows that span across a multi-column table, the row height clamps awkwardly because the text only occupies column A while B–F are empty. Fix: merge the note row horizontally across all columns via Sheets API `mergeCells`.
+
+```python
+# Merge a note row across columns A–F (0-indexed row)
+requests = [{
+    'mergeCells': {
+        'range': {
+            'sheetId': SHEET_ID,
+            'startRowIndex': row_idx,   # 0-indexed
+            'endRowIndex': row_idx + 1,
+            'startColumnIndex': 0,
+            'endColumnIndex': 6         # A through F
+        },
+        'mergeType': 'MERGE_ALL'
+    }
+}]
+service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={'requests': requests}).execute()
+```
+
+**Finding note rows programmatically:**
+```python
+# Note rows = single-cell rows where content starts with 'Note:' or is a lone string
+rows = service.spreadsheets().values().get(
+    spreadsheetId=SPREADSHEET_ID, range='Training!A1:F65'
+).execute().get('values', [])
+
+note_row_indices = [i for i, row in enumerate(rows) if row and len(row) == 1 and row[0].strip()]
+```
+
+**Blair Fitness Profile sheet IDs (active project):**
+- Spreadsheet ID: `1kz1XlSb6a0zG6FaJyVLD3MWY6inCTSTEhhYdlAeTvPA`
+- Training tab sheetId: `52799403`
+- Assessment tab sheetId: `2137559030`
+- Nutrition tab sheetId: `1102946294`
+
+## Google Sheets — Merging Single-Cell Rows
+
+When a workout spreadsheet has header/note rows that span only column A (single-cell), they clamp row height awkwardly. Fix: merge them horizontally across all columns.
+
+**Pattern: merge all single-cell rows in one batch**
+```python
+import sys
+sys.path.insert(0, '/home/hermes/.hermes/skills/productivity/google-workspace/scripts')
+import google_api
+
+creds = google_api.get_credentials()
+from googleapiclient.discovery import build
+service = build('sheets', 'v4', credentials=creds)
+
+SPREADSHEET_ID = '<sheet_id>'
+SHEET_ID = <tab_sheet_id>  # from spreadsheets().get() metadata
+
+# 0-indexed row indices to merge (convert from 1-indexed row numbers)
+rows_to_merge = [0, 1, 6, 7, 18, ...]  # all header/note/phase rows
+
+requests = [
+    {
+        'mergeCells': {
+            'range': {
+                'sheetId': SHEET_ID,
+                'startRowIndex': row_idx,
+                'endRowIndex': row_idx + 1,
+                'startColumnIndex': 0,
+                'endColumnIndex': 6   # A through F — match your column count
+            },
+            'mergeType': 'MERGE_ALL'
+        }
+    }
+    for row_idx in rows_to_merge
+]
+
+service.spreadsheets().batchUpdate(
+    spreadsheetId=SPREADSHEET_ID,
+    body={'requests': requests}
+).execute()
+```
+
+**How to identify rows that need merging:**
+```python
+# Fetch all rows, flag single-cell entries
+result = service.spreadsheets().values().get(
+    spreadsheetId=SPREADSHEET_ID,
+    range='Training!A1:F65'
+).execute()
+
+for i, row in enumerate(result.get('values', []), 1):
+    if len(row) == 1 and row[0].strip():
+        print(f'Row {i} (0-indexed {i-1}): {row[0][:60]}')
+```
+
+**Blair Fitness Profile — Training tab merged rows (July 2026):**
+- Rows 1–5: client metadata (name, goal, duration, days, location)
+- Rows 7–8, 10–12: Phase 1 & 2 headers + focus notes
+- Rows 14–16: Progressive overload method + rules
+- Rows 19, 29, 39, 50, 62: Day headers (DAY 1 through DAY 5)
+- Rows 40, 51: Mid-day note rows
+
 ## Pitfalls
 
 ### Data Extraction
