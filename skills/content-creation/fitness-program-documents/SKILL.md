@@ -295,6 +295,18 @@ for i, row in enumerate(result.get('values', []), 1):
 
 ⚠️ **Pitfall:** Scanning a fixed range (e.g. A1:F65) misses rows added below. Blair's Pilates/Active Recovery section (rows 72–73) was missed on first pass for this reason. Always use a generous upper bound.
 
+⚠️ **Pitfall:** Run the merge check on **every tab**, not just Training. Blair's Nutrition tab had the same issue (14 unmerged single-cell rows including section headers and all FOODS TO LIMIT bullet rows). Apply the same scan + merge + left-align pattern to Assessment, Training, and Nutrition in one pass.
+
+**Blair Fitness Profile — Nutrition tab merged rows (July 2026):**
+- Row 7: `DAILY MACRO BREAKDOWN — TRAINING DAY`
+- Row 16: `REST DAY MACROS`
+- Row 23: `MACRO RATIONALE`
+- Row 24: Macro rationale body text
+- Row 26: `FOOD SOURCE GUIDANCE`
+- Row 32: `FOODS TO LIMIT / AVOID`
+- Rows 33–39: Bullet items (all single-cell)
+- Row 41: `SUPPLEMENT STACK`
+
 **Alignment rule:** merged single-cell rows must always be **left-aligned**. After merging, apply a `repeatCell` request setting `horizontalAlignment: LEFT` across the same row range. Centered text on these rows is wrong.
 
 ```python
