@@ -1,0 +1,26 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Compile check
+        run: python -m py_compile crawler.py listener.py enrich.py
+      - name: Validate config templates are parseable JSON
+        run: |
+          python -c "import json; json.load(open('listener_config.template.json'))"
+          python -c "import json; json.load(open('secrets/ig_cookies.template.json'))"
+          python -c "import json; json.load(open('cities.json'))"
+      - name: Schema present
+        run: test -f SCHEMA.md && echo "schema ok"

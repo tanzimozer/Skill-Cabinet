@@ -1,0 +1,24 @@
+{
+  "trait_or_category_1": [
+    {
+      "pattern": "regex_pattern_or_natural_language_descriptor",
+      "example": "concrete example text that matches this pattern",
+      "explanation": "Why this pattern signals the trait (1–2 sentences)",
+      "confidence": 0.85
+    },
+    {
+      "pattern": "another_pattern",
+      "example": "example showing variation",
+      "explanation": "Why this variation matters",
+      "confidence": 0.70
+    }
+  ],
+  "trait_or_category_2": [
+    {
+      "pattern": "anti_pattern_or_absence",
+      "example": "example of what NOT to match",
+      "explanation": "This pattern should NOT co-occur with valid trait",
+      "confidence": 0.90
+    }
+  ]
+}

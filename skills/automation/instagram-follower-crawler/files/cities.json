@@ -1,0 +1,9 @@
+{
+  "seattle": {
+    "keywords": ["seattle", "206", "ballard", "capitol hill", "slu", "south lake union",
+                 "fremont", "west seattle", "queen anne", "greenlake", "green lake",
+                 "wallingford", "pnw", "wa", "washington"],
+    "strong": ["seattle", "206", "ballard", "capitol hill", "fremont", "west seattle"],
+    "weak": ["pnw", "wa", "washington"]
+  }
+}

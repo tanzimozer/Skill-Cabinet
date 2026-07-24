@@ -1,0 +1,102 @@
+---
+name: whatsapp-bridge
+description: Troubleshooting and operational patterns for the WhatsApp bridge (Baileys-based)
+category: gateway
+tags: [whatsapp, messaging, gateway, bridge, troubleshooting]
+---
+
+# WhatsApp Bridge
+
+Operational knowledge and troubleshooting patterns for Hermes's WhatsApp gateway bridge.
+
+## Architecture
+- **Bridge**: Node.js service (`~/.hermes/hermes-agent/scripts/whatsapp-bridge/bridge.mjs`)
+- **Port**: `localhost:3000` (default)
+- **Session**: Stored in `~/.hermes/whatsapp/session/`
+- **Logs**: `~/.hermes/whatsapp/bridge.log`
+
+## When to use this skill
+- `send_message` tool fails with WhatsApp-specific errors
+- Bridge connectivity issues
+- Message delivery failures to groups or DMs
+
+## Common issues
+
+### 0. Direct bridge calls require Bearer token auth
+
+All state-changing bridge endpoints (`/send`, `/send-media`, `/edit`, etc.) require:
+```
+Authorization: Bearer <WHATSAPP_BRIDGE_TOKEN>
+```
+Retrieve it with: `grep 'WHATSAPP_BRIDGE_TOKEN' ~/.hermes/.env | cut -d= -f2`
+
+Without it you get `{"error":"Unauthorized"}` (HTTP 401). `/health` is always open.  
+See `references/send-message-workaround.md` for full curl examples with auth.
+
+### 1. send_message fails with JID decode error
+**Symptom**: `WhatsApp bridge error (500): {"error":"Cannot destructure property 'user' of 'jidDecode(...)' as it is undefined."}`
+
+**Cause**: Bridge cannot parse the target JID (group ID or contact number).
+
+**Solutions**:
+1. **Retry once** — Transient bridge state can resolve on second attempt
+2. **Use direct bridge API** — See `references/send-message-workaround.md`
+3. **Manual fallback** — Provide user with message text to send manually
+
+**Do not** capture this as "WhatsApp messaging is broken" — it's a transient bridge parsing issue, not a permanent failure.
+
+### 2. Person-specific messaging protocols
+
+**When user says "always text [Person] in [Group]"**, store this in **hindsight memory**, not just session memory:
+
+```python
+hindsight_retain(
+    content="[Person] communication protocol: Always message [Person] in '[Group Name]' group chat (ID: [group_id]), never send direct messages. This is the only [Person]-related group.",
+    context="[Person] messaging preference"
+)
+```
+
+**Why hindsight, not skill**: Person-specific routing rules are operational state, not workflow patterns. They belong in durable memory so every future session knows the rule.
+
+**When to surface the protocol**: Any time the user says "text [Person]" or "[Person]" appears in a task requiring messaging.
+
+### 3. Bridge not running
+**Check**: `pgrep -f whatsapp-bridge`  
+**Restart**: `pkill -f whatsapp-bridge && cd ~/.hermes/hermes-agent/scripts/whatsapp-bridge && node bridge.mjs >> ~/.hermes/whatsapp/bridge.log 2>&1 &`
+
+### 4. Session expired
+**Symptom**: QR code prompt or "Not connected" errors  
+**Fix**: Re-scan QR code via bridge startup output
+
+### 5. `send_message` tool sends to wrong field
+**Symptom**: Tool returns 401 Unauthorized or 400 error  
+**Cause**: `send_message` tool passes `to` field; bridge requires `chatId`. Also the tool may not attach the Bearer token correctly.  
+**Fix**: Bypass the tool and call bridge directly:
+```python
+import requests
+token = open('/home/hermes/.hermes/.env').read()  # parse WHATSAPP_BRIDGE_TOKEN
+requests.post('http://localhost:3000/send',
+  headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+  json={'chatId': '<jid>', 'message': '<text>'})
+```
+
+### 6. Sending images/media via `/send-media`
+**Correct payload**: `{"chatId": "...", "filePath": "/absolute/path/to/file.png", "caption": "..."}`  
+**Wrong**: passing `base64` or `url` fields — these are NOT supported; bridge will 400.  
+**Size limit**: Default Express body limit is ~100KB. For images, patch `bridge.js` line with `express.json()` → `express.json({ limit: '50mb' })` then restart bridge.  
+**Large images**: Crop/split before sending. Use PIL: `img.crop((0,0,w,h//2)).save(...)`. Keep each file under ~200KB for reliable delivery.
+
+### 7. Bridge restart sequence (correct order)
+```bash
+# 1. Kill existing
+kill $(ps aux | grep "node.*bridge" | grep -v grep | awk '{print $2}')
+# 2. Restart in background
+cd ~/.hermes/hermes-agent/scripts/whatsapp-bridge && node bridge.js &
+# 3. Wait for reconnect then health check
+sleep 4 && curl -s http://localhost:3000/health
+```
+Note: bridge file may be `bridge.js` or `bridge.mjs` — check which exists.
+
+## Reference files
+- `references/send-message-workaround.md` — Direct HTTP API fallback when tool fails
+- `references/media-send-patterns.md` — Image splitting, size limits, filePath vs base64

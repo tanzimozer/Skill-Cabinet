@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1600px; height: 1000px;
+    background: #FAFAFA;
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
+    color: #1A1A1A;
+    overflow: hidden;
+  }
+  .header {
+    background: #fff;
+    border-bottom: 1px solid #E5E5EA;
+    padding: 28px 60px 22px;
+    display: flex; align-items: baseline; gap: 16px;
+  }
+  .header h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; color: #1A1A1A; }
+  .header span { font-size: 16px; color: #8A8A8E; font-weight: 400; }
+
+  .canvas { padding: 36px 60px; }
+
+  .card {
+    background: #fff;
+    border: 1px solid #E5E5EA;
+    border-radius: 16px;
+    padding: 22px 28px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .card.accent-teal   { border-top: 3px solid #00897B; }
+  .card.accent-blue   { border-top: 3px solid #1976D2; }
+  .card.accent-purple { border-top: 3px solid #7B1FA2; }
+  .card.accent-orange { border-top: 3px solid #D1510A; }
+  .card.accent-green  { border-top: 3px solid #2E7D32; }
+  .card.accent-red    { border-top: 3px solid #C62828; }
+
+  .tag {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.3px;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .card-title { font-size: 18px; font-weight: 700; color: #1A1A1A; margin-bottom: 4px; }
+  .card-desc  { font-size: 13px; color: #636366; line-height: 1.5; }
+
+  .section-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.4px;
+    text-transform: uppercase; color: #AEAEB2; margin-bottom: 12px;
+  }
+
+  .pill {
+    display: inline-block; background: #F2F2F7; color: #636366;
+    font-size: 11px; font-weight: 500;
+    padding: 4px 12px; border-radius: 99px; margin: 3px 3px 3px 0;
+  }
+
+  .footer {
+    position: absolute; bottom: 20px; right: 60px;
+    font-size: 11px; color: #C7C7CC; letter-spacing: 0.5px;
+  }
+
+  /* Colour helpers */
+  .teal   { color: #00897B; } .blue   { color: #1976D2; }
+  .purple { color: #7B1FA2; } .orange { color: #D1510A; }
+  .green  { color: #2E7D32; } .red    { color: #C62828; }
+  .slate  { color: #455A64; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>TIMBR</h1>
+  <span>Chart Title Here</span>
+</div>
+
+<div class="canvas">
+  <!-- Content here -->
+</div>
+
+<div class="footer">timbr.fit · Seattle · 2025</div>
+
+</body>
+</html>

@@ -1,0 +1,163 @@
+{
+  "skill_index": {
+    "comment": "Upgrade 2: Skill Index Pre-Binding. Store in persistent memory Layer 5 (Operational Rules). DO NOT include skill definitions here — only trigger keywords, invocation instructions, and credential source pointers.",
+    
+    "gmail_automation": {
+      "skill_name": "gmail-automation",
+      "trigger_keywords": ["gmail", "email", "inbox", "check mail", "unread", "send email", "draft"],
+      "short_description": "Read/write Gmail, parse unread, filter action items, send messages",
+      "instruction": "Auto-use gmail-automation for Gmail tasks: retrieve email list, parse unread, filter for action items, send if requested",
+      "credential_source": "EDITH.credentials.google_oauth (scopes: gmail.modify, gmail.readonly, gmail.send)",
+      "auto_bind": true,
+      "confidence_threshold": 0.95,
+      "token_cost_cached": 0,
+      "token_cost_uncached": 80
+    },
+    
+    "github_ops_skill": {
+      "skill_name": "github-ops-skill",
+      "trigger_keywords": ["github", "commit", "push", "pull", "merge", "branch", "repo", "pr"],
+      "short_description": "GitHub operations: branches, commits, PRs, repo management",
+      "instruction": "Auto-use github-ops-skill for GitHub tasks: handle authentication, branch management, PR operations, commit workflows",
+      "credential_source": "EDITH.credentials.github_pat (scopes: repo, gist, user)",
+      "auto_bind": true,
+      "confidence_threshold": 0.90,
+      "token_cost_cached": 0,
+      "token_cost_uncached": 75
+    },
+    
+    "fitness_intelligence_api": {
+      "skill_name": "fitness-intelligence-api",
+      "trigger_keywords": ["workout", "exercise", "stage", "pairing", "routine", "muscle", "training"],
+      "short_description": "Fitness program routing: stage progression, exercise pairing, routine assignment",
+      "instruction": "Auto-use fitness-intelligence-api: load stage state from Google Sheets, validate muscle pairings (approved/forbidden), route to appropriate API endpoint",
+      "credential_source": "EDITH.credentials.google_oauth (scopes: spreadsheets, drive)",
+      "config_source": "Sheet ID: 1Tb3OHcuIkCIbIL59k60BhBEiCMw5fnjOenUO1isBefo",
+      "auto_bind": true,
+      "confidence_threshold": 0.85,
+      "token_cost_cached": 0,
+      "token_cost_uncached": 70
+    },
+    
+    "google_calendar_sync": {
+      "skill_name": "google-calendar-sync",
+      "trigger_keywords": ["calendar", "schedule", "meeting", "event", "block", "availability"],
+      "short_description": "Google Calendar operations: read/write events, manage availability",
+      "instruction": "Auto-use google-calendar-sync for calendar tasks: read existing events, create/modify/delete as requested, manage blocking/availability",
+      "credential_source": "EDITH.credentials.google_oauth (scopes: calendar)",
+      "auto_bind": true,
+      "confidence_threshold": 0.90,
+      "token_cost_cached": 0,
+      "token_cost_uncached": 70
+    },
+    
+    "instagram_automation": {
+      "skill_name": "instagram-automation",
+      "trigger_keywords": ["instagram", "ig", "handle", "profile", "posts", "followers"],
+      "short_description": "Instagram profile analysis: handle lookup, follower metrics, post insights",
+      "instruction": "Auto-use instagram-automation: validate session, query Instagram API, parse profile data, return metrics/analysis",
+      "credential_source": "EDITH.credentials.instagram (session-based; may require re-auth if stale)",
+      "auto_bind": true,
+      "confidence_threshold": 0.80,
+      "token_cost_cached": 0,
+      "token_cost_uncached": 85,
+      "note": "Session-based auth; check EDITH for expiry before invocation"
+    }
+  },
+  
+  "auto_binding_rules": {
+    "comment": "Upgrade 5: Proactive Skill Auto-Binding. When user message contains keyword, agent detects it, looks up skill_index, loads instruction + credential, invokes skill directly.",
+    
+    "gmail_task": {
+      "keywords": ["gmail", "email", "inbox", "unread", "check mail"],
+      "skill_to_bind": "gmail_automation",
+      "auto_action": "retrieve_emails()",
+      "credential_auto_inject": true,
+      "require_confirmation": false
+    },
+    
+    "github_task": {
+      "keywords": ["github", "commit", "push", "pull", "merge", "repo"],
+      "skill_to_bind": "github_ops_skill",
+      "auto_action": "handle_git_operation()",
+      "credential_auto_inject": true,
+      "require_confirmation": false,
+      "high_risk_keywords": ["delete", "force-push", "revert", "reset"],
+      "confirmation_required_if": "high_risk_keywords detected"
+    },
+    
+    "calendar_task": {
+      "keywords": ["calendar", "schedule", "meeting", "event", "block"],
+      "skill_to_bind": "google_calendar_sync",
+      "auto_action": "manage_calendar()",
+      "credential_auto_inject": true,
+      "require_confirmation": false
+    },
+    
+    "fitness_task": {
+      "keywords": ["workout", "exercise", "stage", "pairing", "routine"],
+      "skill_to_bind": "fitness_intelligence_api",
+      "auto_action": "assign_exercises()",
+      "credential_auto_inject": true,
+      "require_confirmation": false
+    },
+    
+    "instagram_task": {
+      "keywords": ["instagram", "ig", "handle", "profile"],
+      "skill_to_bind": "instagram_automation",
+      "auto_action": "analyze_profile()",
+      "credential_auto_inject": true,
+      "require_confirmation": false,
+      "note": "Confirm session is fresh before invoking"
+    }
+  },
+  
+  "binding_cost_analysis": {
+    "cost_before_binding": {
+      "description": "Without pre-binding, each task requires: skill lookup + credential injection + skill invocation",
+      "per_task_tokens": 150,
+      "breakdown": {
+        "skill_definition_lookup": 30,
+        "credential_injection": 50,
+        "skill_context_load": 50,
+        "confirmation_dialog": 20
+      }
+    },
+    
+    "cost_after_binding": {
+      "description": "With pre-binding, keyword match triggers cached instruction + credential routing",
+      "per_task_tokens": 10,
+      "breakdown": {
+        "keyword_detection": 5,
+        "memory_lookup": 5,
+        "credential_routing": 0,
+        "confirmation_dialog": 0
+      }
+    },
+    
+    "savings": {
+      "tokens_per_task": 140,
+      "daily_tasks": 20,
+      "daily_savings": 2800,
+      "monthly_savings": 84000,
+      "note": "Actual savings will be 50-60% of this estimate (some tasks fail to bind, false positives require confirmation)"
+    }
+  },
+  
+  "validation_checks": {
+    "on_deployment": [
+      "Confirm all 5 skills are in skill library (skill_view works for each)",
+      "Confirm skill_index loads from persistent memory (no missing entries)",
+      "Confirm trigger keywords are spelled correctly (typos break auto-binding)",
+      "Test auto-binding with 10 sample user messages; confirm 9/10 detect correctly",
+      "Monitor false positive rate (unintended skill triggers); adjust confidence_threshold if > 10%"
+    ],
+    
+    "ongoing_monitoring": [
+      "Weekly: check that skill definitions haven't changed (if changed, update index)",
+      "Monthly: measure auto-binding success rate (should be > 85%)",
+      "Monthly: measure token savings (auto-binding should save ~80% of per-task cost)",
+      "Quarterly: review trigger keywords (add new ones, remove dead keywords)"
+    ]
+  }
+}

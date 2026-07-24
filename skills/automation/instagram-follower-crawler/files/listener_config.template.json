@@ -1,0 +1,9 @@
+{
+  "bridge_url": "http://localhost:3000",
+  "bridge_token": "PASTE_WHATSAPP_BRIDGE_TOKEN",
+  "chat_id": "PASTE_GROUP_CHAT_ID",
+  "allow_senders": ["160799431606497@lid"],
+  "default_depth": 1,
+  "max_per_account": 500,
+  "poll_seconds": 8
+}
