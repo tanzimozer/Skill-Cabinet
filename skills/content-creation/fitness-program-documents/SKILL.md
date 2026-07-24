@@ -297,6 +297,31 @@ for i, row in enumerate(result.get('values', []), 1):
 
 ⚠️ **Pitfall:** Run the merge check on **every tab**, not just Training. Blair's Nutrition tab had the same issue (14 unmerged single-cell rows including section headers and all FOODS TO LIMIT bullet rows). Apply the same scan + merge + left-align pattern to Assessment, Training, and Nutrition in one pass.
 
+⚠️ **Pitfall:** Run the merge check on **every tab**, not just Training. Blair's Nutrition tab had the same issue (14 unmerged single-cell rows including section headers and all FOODS TO LIMIT bullet rows). Apply the same scan + merge + left-align pattern to Assessment, Training, and Nutrition in one pass.
+
+## Formatting Rules (Blair Fitness Profile)
+
+- **Column A only** gets coloured backgrounds (dark green for day/section headers, etc.)
+- **All other columns** (B, C, D, E, F): white background (`rgb 1,1,1`), black text — no exceptions
+- **Merged single-cell rows**: LEFT aligned, WRAP enabled, MIDDLE vertical alignment
+- **Table column headers** (Sets/Reps/Rest/Cue/Progression): dark background with white bold text — intentional, do not reset
+- **Data rows**: white background, black text, left-aligned in col A, centered in numeric cols (B–D)
+
+### Formatting scan checklist (run after any sheet build)
+```python
+# Flag non-white backgrounds on cols B+
+for r_idx, row in enumerate(grid.get('rowData', [])):
+    for c_idx, cell in enumerate(row.get('values', [])[1:], 1):  # skip col A
+        bg = cell.get('effectiveFormat', {}).get('backgroundColor', {})
+        r, g, b = bg.get('red', 1), bg.get('green', 1), bg.get('blue', 1)
+        if not (r > 0.95 and g > 0.95 and b > 0.95):
+            val = cell.get('formattedValue', '')
+            # Intentional dark headers (Sets/Reps/Rest/Cue/Progression rows) → skip
+            # Everything else → flag and fix to white
+```
+
+**Known fix (July 2026):** Nutrition tab col B had light green background (0.85, 0.93, 0.85) on 9 rows and cols C/D on supplement header row — all reset to white.
+
 **Blair Fitness Profile — Nutrition tab merged rows (July 2026):**
 - Row 7: `DAILY MACRO BREAKDOWN — TRAINING DAY`
 - Row 16: `REST DAY MACROS`
