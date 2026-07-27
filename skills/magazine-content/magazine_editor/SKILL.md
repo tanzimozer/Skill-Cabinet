@@ -1,280 +1,438 @@
----
-name: magazine_editor
-category: content
-description: "EIC editorial system for TIMBR magazine — Seattle fitness + lifestyle + culture publication targeting 25-35 year old young professionals. Includes the EIC checklist, reader satisfaction criteria, value framework, and production pipeline."
-tags: [timbr, magazine, editorial, eic, seattle, fitness, lifestyle]
-depends_on: [magazine_editor]
----
+# TIMBR Editorial Standards & Production Handbook
 
-# TIMBR Magazine Editor in Chief
-
-## Skill Identity
-
-**Canonical name:** `magazine_editor`
-Previously named `timbr_magazine_editor` — renamed this session. Any reference to the old name should be treated as this skill.
-Pushed to Skill-Cabinet repo at commit `3ad3d13`.
+**Document type:** Editorial SOP — Editor in Chief Operating Standard
+**Version:** 2.0
+**Effective date:** July 2026
+**Owner:** Editor in Chief
+**Applies to:** All content writers, section editors, and contributors working on TIMBR magazine
+**Scope:** Every issue of TIMBR — print-equivalent digital publication
 
 ---
 
-## Publication Identity
+## 1. Mission
 
-**TIMBR** — Seattle fitness, lifestyle and culture magazine for young professionals aged 25–35.
+TIMBR exists to serve one reader: the Seattle young professional who refuses to choose between career, body, and social life.
 
-**The reader (Maya):** Works in tech, South Lake Union. Trains 3-4x/week. Goes out Thursday nights. Refuses to choose between career, body and social life. Dismisses anything that makes her feel like she's failing.
+Every editorial decision — every word, every feature, every spot recommendation — is measured against a single test: **does this make Maya's life more informed, more local, and more real?**
 
----
-
-## EIC Checklist (in order)
-
-### 1. Reader Satisfaction
-**Definition:** Reader leaves informed about Seattle's fitness culture, social culture, and the real people inside it.
-
-**Criteria (non-negotiable, must be EXCEPTIONAL):**
-- Seattle fitness culture angle — sharp, specific, current. Not generic.
-- Social/lifestyle culture angle — how fitness lives inside real Seattle life.
-
-**Required but supporting (not the lead):**
-- Real people — named, specific, grounded. They illustrate the culture; they don't carry it alone.
-- People selection stays with Tanzim — the EIC does not make casting decisions.
-
-**Minimum standard test:**
-A piece can earn its place with one or two elements done exceptionally well. It does NOT need all three (culture + fitness + person) done adequately. Exceptional beats adequate-and-complete every time.
-
-> Example PASS: A piece entirely about one woman's experience joining a Seattle run club and how it changed her social life. Zero training data. Pure human story set inside Seattle's fitness culture. Culture + person = exceptional. Passes.
->
-> Example FAIL: A piece covering all three angles — club, training, person — but none memorably. Adequate coverage of everything. Passes no gate.
+This handbook exists to protect that standard. It governs how content is commissioned, written, reviewed, and published.
 
 ---
 
-### 2. Value to Reader
-**Definition:** Actionable, local, and visitable. Every issue must contain all four value elements — no exceptions, no issue-by-issue variation.
+## 2. Scope
 
-**The four mandatory value elements (every issue):**
+**Who this applies to:**
+- The Editor in Chief
+- All section writers (staff and commissioned)
+- All subagents deployed in the content pipeline
+- Any contributor working on a TIMBR issue
 
-| Element | What it is | Standard |
+**What this governs:**
+- Editorial voice and tone
+- Content quality standards
+- Production workflow and gate criteria
+- Quality review process
+- Delivery format
+
+**What this does not govern:**
+- Advertising or commercial partnerships
+- Social media content (separate brief)
+- Sponsored content (separate brief — must be disclosed and kept off the editorial floor)
+
+---
+
+## 3. The Reader
+
+**Persona: Maya**
+
+Maya works in tech, South Lake Union. She trains 3–4 times a week, goes out Thursday nights, and tracks her macros without making it a personality. She is 25–35, career-driven, socially active, and tired of content that either ignores her social life or makes her feel guilty about it.
+
+**The audience test (use this before approving any piece):**
+
+> *"Would Maya pull this out and send it to a friend? Or would she roll her eyes and close the tab?"*
+
+If the answer is the latter — rewrite or kill it.
+
+**What Maya responds to:**
+- Content that is specific to Seattle, not generic US fitness culture
+- Real people with real stories grounded in real places
+- Actionable recommendations she can act on this week
+- Nightlife coverage that doesn't apologise for existing
+
+**What Maya rejects:**
+- Generic wellness coaching in the second person ("You should…")
+- Content that makes her feel like she is failing
+- Aspirational fluff with no local anchor
+- Anything that reads like a press release
+
+---
+
+## 4. Editorial Values
+
+These five values govern every editorial decision. They are not aspirational. They are operational.
+
+**1. Specificity**
+Generic is a failure state. Every claim, every recommendation, every person featured must be named, addressed, and grounded in a specific detail. "A local gym" is not acceptable. "Rainier Barbell on 12th Ave" is.
+
+**2. Local truth**
+TIMBR is a Seattle publication. Content that could run in any US city has not met the standard. Seattle geography, venues, culture, and people must be embedded as evidence — not decoration.
+
+**3. Reader respect**
+Maya is smart. She does not need to be coached, motivated, or told what she "should" do. The editorial register is informative, not prescriptive. We report. We feature. We recommend. We do not lecture.
+
+**4. Editorial independence**
+No featured venue, gym, restaurant, or person receives coverage in exchange for anything of value. Positive coverage is earned by being genuinely worth covering. Negative coverage is addressed by not featuring — TIMBR does not run critical takedowns of local businesses.
+
+**5. Accuracy**
+Every factual claim is sourced. Every person is real. Every address is verified. Invented detail is grounds for return to writer or kill. There is no acceptable margin for fabrication in any form.
+
+---
+
+## 5. Voice & Tone
+
+TIMBR runs three distinct editorial registers matched to section type. Writers do not choose their register — it is assigned by section.
+
+### 5.1 The Athletic register (Training, Culture)
+
+**IS:** Expert, analytical, narrative-led, earned rhythm. Opens with the cultural observation or physical reality, then builds. Sources are named. Claims are substantiated.
+
+**IS NOT:** Motivational. Listicle. Generic. Self-help.
+
+**Audience test for this register:** Would this run in a serious sports publication without embarrassment?
+
+**Reference sentence:**
+> "The shift toward strength training in Seattle's boutique studios is not a programming trend. It is a response to what women in this city actually want from their hour."
+
+### 5.2 People Magazine register (Nutrition, Social, Location Features)
+
+**IS:** Scene-first. Named person present-tense. Warm without being sycophantic. Specific detail over general impression.
+
+**IS NOT:** Profile puff piece. Press release. Adjective-heavy.
+
+**Audience test for this register:** Does the reader feel like they know this person or place by the end of the paragraph?
+
+**Reference sentence:**
+> "Jade Kim orders the same thing every Tuesday: the black sesame smoothie and a side of turkey avocado. She started coming to Bluebird Provisions in January because it was on her walk to the gym. Now it is part of the training routine."
+
+### 5.3 Fitt Insider register (Supplements, Recovery, Nightlife)
+
+**IS:** Declarative. Verdict-led. Staccato. One idea per paragraph. Data embedded flat. Opinionated kicker at the end.
+
+**IS NOT:** Hedged. Review-format. Conversational preamble.
+
+**Audience test for this register:** Does every sentence earn its place, or is it explaining itself?
+
+**Reference sentences:**
+> "Magnesium glycinate. Not oxide. The research is not ambiguous.
+> 400mg before bed. That is the protocol."
+
+---
+
+## 6. Prohibited Language & Devices
+
+The following are banned in all TIMBR content. EIC rewrites on sight — no writer note required.
+
+**Structural devices:**
+- Fictional cold-opens ("It is 7:14 on a Tuesday and Maya is already…")
+- Invented characters or constructed scenes
+- Em-dashes used for stylistic effect
+- Second-person wellness coaching register ("You should…", "Try this…", "If you want to…")
+
+**Vocabulary (AI-pattern words — immediate rewrite trigger):**
+delve, foster, tapestry, vibrant, robust, holistic, leverage, seamless, pivotal, transformative, unlock, elevate, revolutionize, journey (in wellness context), empower, thrive, curated, game-changer, deep dive
+
+**Framing:**
+- Anything that implies Maya is failing or behind
+- Coverage that reads as promotional (especially supplements)
+- Unverified health claims
+
+---
+
+## 7. Content Requirements — Every Issue
+
+Every issue of TIMBR must contain all four mandatory value elements. This is non-negotiable — no issue ships without all four.
+
+| Element | Requirement | Minimum Standard |
 |---|---|---|
-| Workout plan | 4-week program (full spec below) | Specific, actionable, fiber-type personalised |
-| Nutrition spots | 4 Seattle restaurants/cafes with macro-friendly meals | 40g protein / 30g carb / 20g fat per meal/dish; full write-up |
-| Local fitness spots | Gyms, studios, run clubs they can walk into | Named, addressed, current (count + write-up format TBD) |
-| Location features | Cafes, restaurants, neighbourhood spots tied to fitness lifestyle | Visitable, Seattle-specific |
+| Workout plan | 4-week program, built to spec (Section 8) | Intermediate, hypertrophy, full gym |
+| Nutrition spots | 4 Seattle restaurants/cafes | 40g protein / 30g carb / 20g fat per featured dish |
+| Local fitness spots | Named gyms, studios, or run clubs | Address, current hours, specific detail |
+| Location features | Seattle-specific visitable spots tied to fitness lifestyle | Must be verifiable and open |
 
-**Why this matters:** Readers feel local. They can relate, actually go visit the locations, find spots to do things. This is the marketing layer that makes content feel useful rather than aspirational.
+**Why these four:** They are the difference between a magazine Maya reads once and one she keeps open on her phone. Actionable, local, and visitable content creates return readership.
 
 ---
 
-## 4-Week Workout Program Spec (LOCKED)
+## 8. Workout Program Specification (Locked)
 
-**Split:** 4 days/week
-Mon: Upper | Tue: Lower | Wed: Rest | Thu: Upper | Fri: Lower | Sat: Rest | Sun: Rest
+All workout programming must meet the following locked specification. Writers do not deviate without EIC sign-off.
 
-**Level:** Intermediate
-**Goal:** Hypertrophy
-**Equipment:** Full gym (barbells, dumbbells, cables, machines)
-**Exercise rotation:** Exercises rotate week to week — never repeated across the 4 weeks
+**Structure:**
+- 4 days per week: Monday Upper / Tuesday Lower / Thursday Upper / Friday Lower
+- Level: Intermediate
+- Goal: Hypertrophy
+- Equipment: Full gym (barbells, dumbbells, cables, machines)
 
-**Rep ranges:** Based on muscle fiber type (fast vs slow twitch), optimised for hypertrophy.
-See `references/muscle-fiber-rep-ranges.md` — full muscle-by-muscle breakdown with rep ranges and set counts.
+**Exercise selection:**
+- Exercises rotate every week — no exercise repeated across the 4-week cycle
+- Rep ranges calibrated to muscle fiber type (fast-twitch vs. slow-twitch), optimised for hypertrophy
+- Volume by muscle size: Large groups (chest, back, quads, hamstrings, glutes) = 3 exercises/day; Small groups (biceps, triceps, shoulders, calves, abs) = 2 exercises/day
 
-**Set volume:** Correlated to muscle size AND fiber type:
-- Big muscles (chest, back, quads, hamstrings, glutes): 3 exercises/day
-- Small muscles (biceps, triceps, shoulders, calves, abs): 2 exercises/day
-- Sets per exercise: also correlated to fiber type (defined in references file)
+**Rest periods:** 45–60 seconds, static, across all exercises
 
-**Rest periods:** Static — 45-60 seconds across all exercises
-
-**Progressive overload (4-week arc):**
+**Progressive overload arc:**
 - Week 1: Establish baseline
 - Week 2: Add volume
 - Week 3: Increase intensity
 - Week 4: Deload
 
-**Warm-up/cool-down:** 1 warm-up + 1 cool-down per session, specific to muscle groups trained that day. Not a static protocol.
+**Warm-up/cool-down:** 1 warm-up + 1 cool-down per session, specific to the muscle groups trained that day
 
 ---
 
-## Nutrition Spot Write-Up Spec (LOCKED)
+## 9. Nutrition Spot Write-Up Specification (Locked)
 
-**Per issue:** 4 spots, each with a full write-up
-**Macro criteria:** 40g protein / 30g carb / 20g fat — per meal or dish
+**Per issue:** 4 spots. Each requires a full write-up to the following spec.
 
-**Each write-up must contain:**
-1. Location — neighbourhood + address
-2. 3 dishes with estimated macro breakdown (each hitting 40P/30C/20F)
-3. Price point — per dish or average spend
-4. Vibe — what kind of place, who goes there
-5. Best time to go — time of day + day of week
+**Macro criteria:** Each featured dish must hit approximately 40g protein / 30g carbohydrate / 20g fat.
 
----
+**Each write-up must contain (in order):**
+1. Name of venue + neighbourhood + full address
+2. 3 featured dishes, each with estimated macro breakdown
+3. Price point (per dish or average spend)
+4. Vibe — the type of venue, the typical crowd, the atmosphere
+5. Best time to go — specific time of day and day of week
 
-### 3. [IN PROGRESS — being built]
-Further checklist items to be defined in subsequent sessions.
-Next question pending: local fitness spots — count + write-up format.
+**Standard not met by:** vague neighbourhood references, estimated dishes without macro breakdown, or venues that cannot be independently verified as open and operating.
 
 ---
 
-## People in TIMBR
+## 10. Section Specifications
 
-- Real people are anchors for the culture story, not the boundary of it.
-- Non-Seattle people can be featured if they are relevant to Seattle's fitness culture.
-- Named, aged, with a specific detail that grounds them.
-- People selection is Tanzim's call — not the EIC's.
-
-**BANNED:** Fictional cold-opens. No "It is 7:14 on a Tuesday and [Name] is already losing." narrative device. No constructed scene-setting with invented characters. Real sourcing or no sourcing.
-
----
-
-## Voice
-
-Three registers, matched by section:
-
-| Section | Voice | Register |
-|---|---|---|
-| Training | The Athletic | Expert, analytical, earned rhythm, real sourcing |
-| Nutrition | People Magazine | Named person, scene-first, present-tense quotes |
-| Supplements | Fitt Insider adapted | Declarative, staccato, verdict-led |
-| Recovery | Fitt Insider adapted | Data-embedded, compressed |
-| Culture | The Athletic | Narrative, sourced, long-form. Scene-set through cultural observation — not fictional characters. Open with the shift, name it, then interrogate what it means. Specific Seattle venues and geography embedded as evidence, not decoration. Never: fictional cold-opens, invented characters, second-person coaching. Reference voice: "The culture around recovery has shifted... This is not a story about whether any of this works. This is a story about what it means." |
-| Social | People Magazine | Warm, specific, human |
-| Nightlife | Fitt Insider adapted | Punchy, opinionated, no apology |
-
-**Fitt Insider voice markers:**
-- Staccato paragraphs. One idea. Stop.
-- Declarative verdicts: *"That's not a fitness trend. That's a mandate."*
-- Data embedded flat: *"40 active clubs. Flat running participation."*
-- Opinionated kickers: *"Expensive flavoured water." / "Register for next year."*
-- Zero second-person wellness coaching register
-
----
-
-## Sections (Every Issue)
-
-| Section | Word Count | Must Do |
-|---|---|---|
-| Training | 800–1,200 | Workout plan reader can use this week |
-| Nutrition | 600–900 | Named Seattle spots with macro breakdown (40P/30C/20F) |
-| Supplements | 400–600 | Evidence verdict, not endorsement |
-| Recovery | 500–800 | Ranked by evidence, not marketing |
-| Culture | 800–1,200 | Seattle fitness + social culture intersection |
-| Social | 500–700 | Real situation, real tools, no guilt |
-| Nightlife | 400–600 | Named Seattle spots, unapologetic |
-
----
-
-## Production Pipeline
-
-**Phase 0:** Always present Tanzim with exactly 2 topic/edition options to choose from before proceeding. No more, no less. He picks; then lock the brief and proceed. Lock this into every new issue — no exceptions.
-
-**Theme selection → brief lock → emotional arc → cover concept
-**Phase 1:** Deploy content team (see below) — all 7 sections in parallel
-**Phase 2:** EIC collects all drafts, edits against full 12-point checklist
-**Phase 3:** Visual production (PNW palette, cinematic photography direction)
-**Phase 4:** Pre-pub checklist
-**Phase 5:** Build Google Doc → send link to Tanzim on WhatsApp. No PDFs. No Drive workarounds. Google Doc link only.
-
----
-
-## Content Team Deployment (MANDATORY)
-
-Every issue deploys 7 parallel subagents — one per section. This is not optional. No section is written sequentially. The team works like a real editorial floor.
-
-**Team roles:**
-
-| Agent | Section | Voice | Word Count |
+| Section | Word Count | Voice | Non-Negotiable |
 |---|---|---|---|
-| Writer 1 | Training | The Athletic | 800-1,200 |
-| Writer 2 | Nutrition | People Magazine | 600-900 |
-| Writer 3 | Fitness Spots | Fitt Insider adapted | 400-600 |
-| Writer 4 | Location Features | People Magazine | 500-700 |
-| Writer 5 | Culture | The Athletic | 800-1,200 |
-| Writer 6 | Social | People Magazine | 500-700 |
-| Writer 7 | Nightlife | Fitt Insider adapted | 400-600 |
+| Training | 800–1,200 | The Athletic | Must include or reference the 4-week workout plan |
+| Nutrition | 600–900 | People Magazine | Must name 4 spots with macro-aligned dishes |
+| Supplements | 400–600 | Fitt Insider | Evidence verdict only — no endorsements |
+| Recovery | 500–800 | Fitt Insider | Ranked by evidence quality, not marketing spend |
+| Culture | 800–1,200 | The Athletic | Must open with a cultural observation, not a person |
+| Social | 500–700 | People Magazine | Real situation, real tools — no guilt framing |
+| Nightlife | 400–600 | Fitt Insider | Named Seattle venues, unapologetic, no caveats |
 
-**Each agent receives:**
-- Issue theme + emotional arc
-- Their specific section brief
-- Voice spec for their section
-- TIMBR reader profile
-- AI writing prohibition rules (no em-dashes, no prohibited words)
+---
+
+## 11. Production Pipeline
+
+### Phase 0 — Topic Selection
+
+EIC presents exactly **two** topic options for the issue. No more, no fewer. Owner selects one. Brief locks immediately on selection. No revisions to the brief after lock without a formal reset.
+
+**Gate criteria (Phase 0 → Phase 1):**
+- [ ] Two options presented and one selected
+- [ ] Issue theme confirmed
+- [ ] Emotional arc defined (what does the reader feel by the end?)
+- [ ] Cover concept direction noted
+
+### Phase 1 — Content Team Deployment
+
+All 7 section writers are deployed in parallel. Sequential writing is not permitted — the editorial floor runs simultaneously.
+
+**Each writer receives at briefing:**
+- Issue theme and emotional arc
+- Section-specific brief
+- Voice specification for their section
+- TIMBR reader profile (Maya)
+- Prohibited language and devices list
 - Word count target
+- Deadline (same for all 7 writers)
 
-**EIC role (Friday):** Collects all 7 drafts, runs the 12-point checklist, rewrites directly where needed (factual failures only go back to the writer).
+**Content team:**
 
-After all drafts are in, Friday ALWAYS does the following without asking:
-1. Run the 12-point EIC checklist across all sections
-2. Rewrite anything that fails (except factual errors, which go back to the writer)
-3. Build the PDF
-4. Send the PDF to Tanzim on WhatsApp
+| Writer | Section | Voice | Word Count |
+|---|---|---|---|
+| Writer 1 | Training | The Athletic | 800–1,200 |
+| Writer 2 | Nutrition | People Magazine | 600–900 |
+| Writer 3 | Supplements | Fitt Insider | 400–600 |
+| Writer 4 | Recovery | Fitt Insider | 500–800 |
+| Writer 5 | Culture | The Athletic | 800–1,200 |
+| Writer 6 | Social | People Magazine | 500–700 |
+| Writer 7 | Nightlife | Fitt Insider | 400–600 |
 
-No confirmation required. No asking "do you want me to." Just do it.
+**Gate criteria (Phase 1 → Phase 2):**
+- [ ] All 7 drafts received
+- [ ] Each draft meets minimum word count
+- [ ] No draft contains prohibited language (initial scan)
 
-**PDF generation:** `/home/hermes/timbr/timbr_vol01.py` — reusable pipeline. New issue = new content module + same script.
+### Phase 2 — EIC Editorial Review
 
-**Archive naming:** `TIMBR_VOL[N]_[THEME-SLUG]_[YYYY-MM]`
+EIC reviews all 7 drafts against the full Pre-Publication Checklist (Section 12). This review is non-negotiable — it runs on every issue, automatically, without instruction.
 
----
+**Failure routing:**
+- **Factual errors** (wrong address, invented person, unverifiable claim) → returned to writer with specific note
+- **All other failures** (voice, structure, prohibited language, quality) → EIC rewrites directly
 
-## Pre-Publication Checklist
+**Gate criteria (Phase 2 → Phase 3):**
+- [ ] All 12 pre-publication checklist items passed
+- [ ] All factual claims independently verifiable
+- [ ] No prohibited language or devices present
 
-- [ ] Reader satisfaction: culture + fitness angle both exceptional?
-- [ ] All 4 value elements present: workout plan, nutrition spots, fitness spots, location features?
-- [ ] Real people: named, aged, grounded in specific detail?
-- [ ] Voice matches section (Athletic / People / Fitt Insider)?
-- [ ] No piece reads like an ad (supplements especially)?
-- [ ] Every feature has a turn — the moment it becomes about something larger?
-- [ ] Issue arc holds front to back?
-- [ ] Cover line delivers what the content promises?
-- [ ] Nothing makes Maya feel bad about herself?
-- [ ] Nightlife section is unapologetic?
+### Phase 3 — Visual Direction
 
----
+Photography direction issued for the cover and any section headers.
 
-## Cover Formula
+- Photography style: cinematic, environmental, PNW natural light — not studio
+- Colour palette: #1B3A2D (forest green), #C17C3C (burnt orange), #F8F4EE (warm white)
+- Cover subject: a Seattle local Maya recognises or wants to be in the room with
 
-- Subject: person Maya recognises or wants to be in the room with. Seattle local preferred.
-- Photography: cinematic, environmental, PNW natural light. Not studio.
-- 1 primary cover line (6–8 words), 2–4 secondary lines (specific promises)
-- Colour: #1B3A2D (forest green), #C17C3C (burnt orange), #F8F4EE (warm white)
+### Phase 4 — Final Assembly
 
----
+All sections assembled in order. Issue arc reviewed front to back. Cover line confirmed against content.
 
-## Delivery
+**Gate criteria (Phase 4 → Phase 5):**
+- [ ] All sections present and in order
+- [ ] Issue arc holds front to back
+- [ ] Cover line delivers what the content actually promises
 
-**Format:** Google Doc only. No PDFs. No Drive workarounds.
-**Send:** Google Doc link to Tanzim on WhatsApp immediately after assembly. No asking. No confirming.
+### Phase 5 — Delivery
 
-## Asset Locations
+Google Doc assembled with all content. Link sent to owner on WhatsApp immediately on completion.
 
-- **Content doc template:** Google Doc — content + Canva spec sheet
-- **Production tracker:** Google Sheets — Issues / Sections / Content Bank tabs
-- **Images:** Google Drive — TIMBR > VOL.XX folder
-- **PDF script:** `/home/hermes/timbr/timbr_vol01.py`
-- **Image assets:** `/home/hermes/timbr/images/`
-- **Sections module:** `/home/hermes/timbr/build_sections.py`
-
----
-
-## VOL.03 Reference
-
-- **Theme:** The Social Issue — fitness as Seattle's social infrastructure
-- **Content doc:** https://docs.google.com/document/d/1p5QubdhfLHYpG_yEXPaU3U9DicE9gKwlgDr-vzYhkgY
-- **Production notes:** `references/vol03-production-notes.md` — EIC corrections, banned patterns, spots used
-
-## VOL.01 Reference
-
-- **Theme:** Seattle Fitness Culture 2026
-- **Content doc:** https://docs.google.com/document/d/1qk9sS4EE4qB9qxNUFpnmqRUW9Xoc2Z-Ylv8JMIjQx8U
-- **Production tracker:** https://docs.google.com/spreadsheets/d/1wtP5nkAdcgx6tZsZBsX3s9U_5xKuYV4kLqH9FrjgNZM
-- **Images Drive:** https://drive.google.com/drive/folders/1ATuTENat85wG-N-MDo72E1BTqrQL_pIO
-- **Status:** Content written (v3 Fitt Insider voice), PDF delivered to WhatsApp. EIC checklist still being built — items 3+ pending next session.
+**Format:** Google Doc only. No PDFs. No Drive workarounds. No asking for confirmation — delivery is automatic.
 
 ---
 
-## EIC Checklist — Build Status
+## 12. Pre-Publication Checklist
 
-| Item | Status |
-|---|---|
-| 1. Reader Satisfaction | ✅ Defined |
-| 2. Value to Reader | ✅ Defined — 4 mandatory elements, workout spec locked, nutrition write-up spec locked |
-| 3+ | 🔲 In progress — resume next session |
+Run in full on every issue. No partial completion.
 
-**Resume point:** Next question = local fitness spots — how many per issue and what does the write-up include?
+| # | Gate | Pass criteria |
+|---|---|---|
+| 1 | Reader satisfaction | Culture + fitness angle both exceptional — not merely covered |
+| 2 | Value elements | All 4 mandatory elements present: workout plan, nutrition spots, fitness spots, location features |
+| 3 | Real people | Every named person is real, aged, and grounded in a specific verifiable detail |
+| 4 | Voice match | Each section's voice matches its registered register (Athletic / People / Fitt Insider) |
+| 5 | Independence | No piece reads as promotional — supplements section especially |
+| 6 | The turn | Every feature has a moment where it becomes about something larger than itself |
+| 7 | Issue arc | The issue holds front to back as a coherent reading experience |
+| 8 | Cover promise | The cover line delivers exactly what the content contains — no bait |
+| 9 | Maya test | Nothing in the issue makes Maya feel like she is failing or behind |
+| 10 | Nightlife standard | Nightlife section is unapologetic — no wellness caveats, no balance messaging |
+| 11 | Prohibited language | Full issue scanned — zero banned vocabulary or structural devices present |
+| 12 | Factual verification | Every address, name, macro figure, and claim is independently verifiable |
+
+---
+
+## 13. Cover Specification
+
+- **Subject:** A Seattle local Maya recognises or wants to be in the room with. Sourced by the owner — never cast by the EIC.
+- **Photography:** Cinematic, environmental, PNW natural light. Not a studio shoot. Not a gym selfie.
+- **Cover line structure:** 1 primary line (6–8 words) + 2–4 secondary lines (specific, concrete promises — not adjectives)
+- **Palette:** #1B3A2D / #C17C3C / #F8F4EE
+
+---
+
+## 14. Sourcing Standards
+
+| Tier | Definition | Usage |
+|---|---|---|
+| On the record | Named, quotable, attributable | Default for all sourcing |
+| On background | Named internally, not in print | Permitted for sensitive context only — requires explicit agreement |
+| Off the record | Not attributed in any form | Not used in TIMBR — we do not report in this register |
+
+**Real people only.** No invented composites. No fictional characters used to represent a real-world type. If a real person cannot be sourced, the angle is reframed or killed.
+
+---
+
+## 15. Corrections Policy
+
+**Classification:**
+
+| Type | Definition | Action |
+|---|---|---|
+| Factual error | Wrong name, address, person, statistic | Return to writer — correction issued in next issue note |
+| Structural failure | Voice, tone, prohibited language | EIC direct rewrite — no writer note unless pattern |
+| Conceptual failure | Angle does not serve the reader | Kill or reframe — EIC decision |
+
+**No silent corrections.** If a factual error is discovered post-publication, it is logged and addressed in the following issue.
+
+---
+
+## 16. AI Tools Policy
+
+AI tools are used in the TIMBR production pipeline for content drafting under EIC editorial direction.
+
+**Permitted:**
+- Drafting section content under a locked brief and voice specification
+- Research assistance for verifiable factual claims
+- Structural editing and voice calibration
+
+**Not permitted:**
+- Generating named people, addresses, or any factual claims without independent verification
+- Publishing AI-generated content that has not passed the full Pre-Publication Checklist (Section 12)
+- Using AI tools to invent sources, quotes, or scene-setting detail
+
+**Verification requirement:** Any factual claim generated by an AI tool must be independently verified before the checklist gate at Phase 2.
+
+---
+
+## 17. Issue Archive
+
+| Issue | Theme | Content Doc |
+|---|---|---|
+| VOL.01 | Seattle Fitness Culture 2026 | https://docs.google.com/document/d/1qk9sS4EE4qB9qxNUFpnmqRUW9Xoc2Z-Ylv8JMIjQx8U |
+| VOL.03 | The Social Issue | https://docs.google.com/document/d/1p5QubdhfLHYpG_yEXPaU3U9DicE9gKwlgDr-vzYhkgY |
+
+---
+
+## Appendix A — Editorial Brief Template
+
+```
+TIMBR VOL.[N] — EDITORIAL BRIEF
+
+Issue theme:
+Emotional arc (what does the reader feel by the end?):
+Cover concept direction:
+Cover subject (owner decision):
+
+Section briefs:
+  Training:
+  Nutrition:
+  Supplements:
+  Recovery:
+  Culture:
+  Social:
+  Nightlife:
+
+Deadlines:
+  First drafts due:
+  EIC review complete:
+  Delivery target:
+
+Nutrition spots (4 — pre-researched or assigned to writer):
+  1.
+  2.
+  3.
+  4.
+
+Local fitness spots (confirmed open and current):
+  1.
+  2.
+  3.
+```
+
+---
+
+## Appendix B — Pre-Publication Checklist (Printable)
+
+- [ ] 1. Culture + fitness angle exceptional
+- [ ] 2. All 4 value elements present
+- [ ] 3. Real people — named, aged, verifiable
+- [ ] 4. Voice matches section register
+- [ ] 5. No piece reads as promotional
+- [ ] 6. Every feature has a turn
+- [ ] 7. Issue arc holds front to back
+- [ ] 8. Cover line matches content
+- [ ] 9. Nothing makes Maya feel like she's failing
+- [ ] 10. Nightlife is unapologetic
+- [ ] 11. Zero prohibited language or devices
+- [ ] 12. All facts independently verified
