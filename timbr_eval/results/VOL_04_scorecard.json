@@ -1,0 +1,116 @@
+{
+  "issue_id": "VOL.04",
+  "overall": "FAIL",
+  "sections": {
+    "Training": {
+      "voice_score": 80,
+      "voice_passed": true,
+      "prohib_score": 80,
+      "prohib_passed": false,
+      "violations": [
+        "Word count 177 is outside allowed range [800\u20131200] for section 'Training'.",
+        "Cross-contamination: section scores 100 on people voice (required: athletic)",
+        "Cross-contamination: section scores 100 on fitt voice (required: athletic)"
+      ],
+      "status": "FAIL"
+    },
+    "Nutrition": {
+      "voice_score": 80,
+      "voice_passed": true,
+      "prohib_score": 80,
+      "prohib_passed": false,
+      "violations": [
+        "Word count 208 is outside allowed range [600\u2013900] for section 'Nutrition'.",
+        "Cross-contamination: section scores 100 on athletic voice (required: people)",
+        "Cross-contamination: section scores 96 on fitt voice (required: people)"
+      ],
+      "status": "FAIL"
+    },
+    "Supplements": {
+      "voice_score": 80,
+      "voice_passed": true,
+      "prohib_score": 75,
+      "prohib_passed": false,
+      "violations": [
+        "AI blocklist term 'delve' found 1 time(s). Penalty: -5.",
+        "Word count 78 is outside allowed range [400\u2013600] for section 'Supplements'.",
+        "Cross-contamination: section scores 100 on athletic voice (required: fitt)",
+        "Cross-contamination: section scores 94 on people voice (required: fitt)"
+      ],
+      "status": "FAIL"
+    },
+    "Recovery": {
+      "voice_score": 80,
+      "voice_passed": true,
+      "prohib_score": 75,
+      "prohib_passed": false,
+      "violations": [
+        "AI blocklist term 'vibrant' found 1 time(s). Penalty: -5.",
+        "Word count 80 is outside allowed range [500\u2013800] for section 'Recovery'.",
+        "Cross-contamination: section scores 100 on athletic voice (required: fitt)",
+        "Cross-contamination: section scores 100 on people voice (required: fitt)"
+      ],
+      "status": "FAIL"
+    },
+    "Culture": {
+      "voice_score": 80,
+      "voice_passed": true,
+      "prohib_score": 80,
+      "prohib_passed": false,
+      "violations": [
+        "Word count 167 is outside allowed range [800\u20131200] for section 'Culture'.",
+        "Cross-contamination: section scores 100 on people voice (required: athletic)",
+        "Cross-contamination: section scores 100 on fitt voice (required: athletic)"
+      ],
+      "status": "FAIL"
+    },
+    "Social": {
+      "voice_score": 80,
+      "voice_passed": true,
+      "prohib_score": 80,
+      "prohib_passed": false,
+      "violations": [
+        "Word count 99 is outside allowed range [500\u2013700] for section 'Social'.",
+        "Cross-contamination: section scores 100 on athletic voice (required: people)",
+        "Cross-contamination: section scores 100 on fitt voice (required: people)"
+      ],
+      "status": "FAIL"
+    },
+    "Nightlife": {
+      "voice_score": 80,
+      "voice_passed": true,
+      "prohib_score": 80,
+      "prohib_passed": false,
+      "violations": [
+        "Word count 68 is outside allowed range [400\u2013600] for section 'Nightlife'.",
+        "Cross-contamination: section scores 100 on athletic voice (required: fitt)",
+        "Cross-contamination: section scores 100 on people voice (required: fitt)"
+      ],
+      "status": "FAIL"
+    }
+  },
+  "blocking_violations": [
+    "Word count 177 is outside allowed range [800\u20131200] for section 'Training'.",
+    "Cross-contamination: section scores 100 on people voice (required: athletic)",
+    "Cross-contamination: section scores 100 on fitt voice (required: athletic)",
+    "Word count 208 is outside allowed range [600\u2013900] for section 'Nutrition'.",
+    "Cross-contamination: section scores 100 on athletic voice (required: people)",
+    "Cross-contamination: section scores 96 on fitt voice (required: people)",
+    "AI blocklist term 'delve' found 1 time(s). Penalty: -5.",
+    "Word count 78 is outside allowed range [400\u2013600] for section 'Supplements'.",
+    "Cross-contamination: section scores 100 on athletic voice (required: fitt)",
+    "Cross-contamination: section scores 94 on people voice (required: fitt)"
+  ],
+  "issue_level_checks": {
+    "violations": [],
+    "penalty": 0,
+    "passed": true,
+    "element_results": {
+      "workout_plan_rep_set": true,
+      "nutrition_spots_4_places": true,
+      "local_fitness_spots_2": true,
+      "location_features_3_places": true
+    }
+  },
+  "generated_at": "2026-07-27T01:24:27.063680"
+}
