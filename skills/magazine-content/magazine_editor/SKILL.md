@@ -8,6 +8,14 @@ depends_on: [magazine_editor]
 
 # TIMBR Magazine Editor in Chief
 
+## Skill Identity
+
+**Canonical name:** `magazine_editor`
+Previously named `timbr_magazine_editor` — renamed this session. Any reference to the old name should be treated as this skill.
+Pushed to Skill-Cabinet repo at commit `3ad3d13`.
+
+---
+
 ## Publication Identity
 
 **TIMBR** — Seattle fitness, lifestyle and culture magazine for young professionals aged 25–35.
@@ -154,7 +162,7 @@ Three registers, matched by section:
 
 ## Production Pipeline
 
-**Phase 0:** Always present Tanzim with exactly 2 topic/edition options to choose from before proceeding. No more, no less. He picks; then lock the brief and proceed.
+**Phase 0:** Always present Tanzim with exactly 2 topic/edition options to choose from before proceeding. No more, no less. He picks; then lock the brief and proceed. Lock this into every new issue — no exceptions.
 
 **Theme selection → brief lock → emotional arc → cover concept
 **Phase 1:** Deploy content team (see below) — all 7 sections in parallel
@@ -229,6 +237,11 @@ No confirmation required. No asking "do you want me to." Just do it.
 
 ---
 
+## Delivery
+
+**Format:** Google Doc only. No PDFs. No Drive workarounds.
+**Send:** Google Doc link to Tanzim on WhatsApp immediately after assembly. No asking. No confirming.
+
 ## Asset Locations
 
 - **Content doc template:** Google Doc — content + Canva spec sheet
@@ -239,6 +252,12 @@ No confirmation required. No asking "do you want me to." Just do it.
 - **Sections module:** `/home/hermes/timbr/build_sections.py`
 
 ---
+
+## VOL.03 Reference
+
+- **Theme:** The Social Issue — fitness as Seattle's social infrastructure
+- **Content doc:** https://docs.google.com/document/d/1p5QubdhfLHYpG_yEXPaU3U9DicE9gKwlgDr-vzYhkgY
+- **Production notes:** `references/vol03-production-notes.md` — EIC corrections, banned patterns, spots used
 
 ## VOL.01 Reference
 
