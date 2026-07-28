@@ -1,0 +1,96 @@
+{
+  "_comment": "Char-count locks for the TIMBR Workout Series (Seattle Series) template. PRINCIPLES.txt Section 3: 'once a page is owner-approved, every dynamic text slot is locked to the EXACT character count of the approved baseline (including spaces)'. Baseline text captured live from Canva design DAHQoZJm12w on 2026-07-27.",
+  "_observed_note": "EVERY slot records `observed`: the live character count measured from the captured baseline string, not an assumption. Uniform on purpose — a slot with no `observed` cannot be told apart from one that was measured and happened to agree, and 'assumed, never measured' is exactly the state a lock file must not be able to hide. `drift` = observed - principles_lock is recorded alongside it, so a zero drift is an explicit finding rather than a silence. Only cover_body drifts (-6); see its _drift_note.",
+  "ruleset": "workout_series",
+  "design_id": "DAHQoZJm12w",
+  "design_title": "Testing Seattle Series",
+  "captured_at": "2026-07-27",
+  "tolerance": 0,
+  "slots": {
+    "cover_body": {
+      "page": 1,
+      "page_title": "Cover",
+      "type": "DYNAMIC",
+      "principles_lock": 357,
+      "observed": 351,
+      "drift": -6,
+      "_drift_note": "DRIFT FLAG: PRINCIPLES.txt Section 3 records the series cover-body lock as 357. This template measures 351. Either the template drifted from the Vol 01 approved baseline or PRINCIPLES records a different baseline. CharLint enforces `observed`; the drift is reported, not silently absorbed. Owner decides which number is canonical.",
+      "element_id": "PBqNtJLXz8qMH6l3-LBZGhkSHCtQF8q74-LBWJcWlGfV6mZKlV",
+      "baseline": "Seattle wears its fitness in the open — runners on the waterfront, climbers on the bluffs, coffee in every hand. Vol 1 carries chest and tricep through Cascade: fifty minutes of pressing, a café worth the walk, the right rooms for the night off. It reads less like a workout and more like a city worth exploring. Train like a local — wherever you are."
+    },
+    "city_intro": {
+      "page": 8,
+      "page_title": "Local Intro",
+      "type": "DYNAMIC",
+      "principles_lock": 628,
+      "observed": 628,
+      "drift": 0,
+      "element_id": "PBl05S7xg7BXsFJZ-LBz4tsSm7pbqZQK5-LB2grrTWqJ0Kkl9P",
+      "baseline": "Cascade is the quieter end of South Lake Union — ten minutes across, and this volume walks its two best doors. On Westlake, a red-lit room counts your sprints; on Harrison, a tiered studio holds every mat in clear sight. Train first. Then the espresso bar that taught America latte art, up Yale across from REI, and a roastery pouring behind a preserved 1927 facade on Thomas. When the day closes: darts under a carousel bar, Texas brisket on 9th, a kitchen running to 2am — all within a few blocks. The next two pages walk both doors — addresses, orders, and the terms that matter. Turn the page. The morning is already mapped."
+    },
+    "anchor_venue": {
+      "page": 9,
+      "page_title": "Local Page 1",
+      "type": "DYNAMIC",
+      "principles_lock": 667,
+      "observed": 667,
+      "drift": 0,
+      "element_id": "PBH5yy8W8Ms5C862-LBmt8wTXXqhxPSj4-LBcxjl5HTybqCmlq",
+      "baseline": "Barry's first Pacific Northwest studio opens at 5:00am weekdays, and the Red Room runs on low lights, loud music, and instructors who know exactly when to push. The 50-minute format splits between Woodway treadmill sprints and strength work on the floor; a Double Floor option trades the treadmill for back-to-back lifting blocks. The crowd is SLU tech pros burning off the Seattle freeze beside regulars who book by instructor name. The Fuel Bar blends post-class shakes you can pre-order before the last interval; locker rooms run plush — private showers, Dyson dryers, OUAI on the shelf. They call it the best workout in the world, period. The room makes the case."
+    },
+    "anchor_cafe": {
+      "page": 9,
+      "page_title": "Local Page 1",
+      "type": "DYNAMIC",
+      "principles_lock": 694,
+      "observed": 694,
+      "drift": 0,
+      "element_id": "PBH5yy8W8Ms5C862-LBkWxfZlJXW51wpR-LBWqcPBTCq03Xvkr",
+      "baseline": "Ten flat minutes from the red room — east on Denny, left on Yale — Espresso Vivace anchors the Alley24 courtyard across from the REI flagship. This is the grand bar of David Schomer, the man who taught American espresso its manners: the heart pour was his signature by 1989, the rosetta followed in '92, and the roast has run Northern Italian — sweet caramel, never burnt — since 1992. Order the Caffe Nico after the last interval and take it in under the curved bar, chrome diner stools, and oxblood banquettes. Emeril called it the best coffee in the country; the room doesn't argue — it pours the next one. Cards only, doors at 6am weekdays — early enough to beat your own class to the line."
+    },
+    "counter_venue": {
+      "page": 10,
+      "page_title": "Local Page 2",
+      "type": "DYNAMIC",
+      "principles_lock": 602,
+      "observed": 602,
+      "drift": 0,
+      "element_id": "PBkG9JLWz3XvkKXZ-LBR8yj69RqqPl3Nk-LBwgKPzGYZlstW12",
+      "baseline": "DRIFT is the calm counterweight on Harrison — an Olson Kundig–designed yoga studio where a tiered floor gives every mat a clear sightline and the entry runs like a ritual: bright juice-bar storefront, a darkened corridor, then an oversized steel door with a human-scaled portal cut into it. The room holds a non-heated 75 degrees; reserve a spot and a Manduka mat, props, and towel are waiting. Power vinyasa, hatha, and yin run daily, 45–60 minutes — founder Vivian Duelli built it so movement feels accessible and grounding, and after a sprint week in the red room, this is where the work settles in."
+    },
+    "counter_cafe": {
+      "page": 10,
+      "page_title": "Local Page 2",
+      "type": "DYNAMIC",
+      "principles_lock": 414,
+      "observed": 414,
+      "drift": 0,
+      "element_id": "PBkG9JLWz3XvkKXZ-LBqGCgPLhsJT7RLw-LBd6L6hkwYPhP1q1",
+      "baseline": "Four minutes from DRIFT, Victrola pours behind the preserved 1927 facade of the Troy Laundry Building — a Capitol Hill roaster since 2000, named for the phonograph and run on jazz-era exuberance. If the map still says Cascade Coffee Works, you're in the right place — Victrola took the counter in 2024. In warm months the garage door rolls up and the room spills onto the patio. Take the post-flow espresso slowly."
+    },
+    "night_page": {
+      "page": 11,
+      "page_title": "Social",
+      "type": "DYNAMIC",
+      "principles_lock": 616,
+      "observed": 616,
+      "drift": 0,
+      "element_id": "PBtZ7GhdnpGTC9Wb-LBHhMTwGGLyqKg7Y-LBBZ2W82Bb14vH7J",
+      "_note": "The 616 lock covers the WHOLE element: title line + rule line + blank line + prose (58-char header block + 558-char body). Measure the full element string, never the prose alone.",
+      "baseline": "The Night Off\nCascade · 9th Avenue North · Thomas Street\n\nSome nights the smartest recovery is a night off, and Cascade keeps its own counsel within a few blocks. Flight Club runs social darts under a carousel bar ringed in marquee bulbs — 21+ after 6pm, all day Saturday. Jack's BBQ smokes Central Texas brisket over hardwood shipped from Texas — go early, the pits close by ten. Thomas Street Warehouse takes the late shift: brick walls, DJs, the kitchen open to 2am, and a happy hour where every plate is $6.95. Rest is part of the program. So is showing up for the people you train near. Take the night — cheers."
+    }
+  },
+  "permanent_slots": {
+    "_comment": "PRINCIPLES.txt Section 4 — never touched by an issue fill. Listed so CharLint can assert they are unchanged.",
+    "brand_subline": {
+      "page": 1,
+      "element_id": "PBqNtJLXz8qMH6l3-LBZGhkSHCtQF8q74-LBQ4jJtq8dC87ZVR",
+      "baseline": "THE CITY IS THE GYM."
+    },
+    "cover_spec_line": {
+      "page": 1,
+      "element_id": "PBqNtJLXz8qMH6l3-LBZGhkSHCtQF8q74-LBtnk0Dr8nh25Fmz",
+      "baseline": "9 EXERCISES · 50 MINUTES · ALL LEVELS"
+    }
+  }
+}
