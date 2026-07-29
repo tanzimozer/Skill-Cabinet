@@ -1,0 +1,51 @@
+{
+  "dimensions": {
+    "voice_brand_compliance": {
+      "score": 90,
+      "verdict": "PASS",
+      "evidence": [
+        "Programming at Taylor Crow Studio runs by life stage, not by template.",
+        "Four life stages, four different programs, one studio, and one coaching philosophy built on anatomy and kinesiology instead of a fixed template pulled off a shelf."
+      ],
+      "rationale": "Consistently declarative, no hype words, no wellness-coach second-person address, no exclamation points. Minor deduction: 'Prenatal clients build muscle mass ahead of delivery, a measurable factor in lowering complication risk; postpartum clients rebuild through a structured return that accounts for recovery timelines most franchise gyms never program for' runs long enough to edge toward editorial-essay register rather than the clipped house style, though it stops short of failing the Forbes test since the specifics (measurable complication risk, recovery timelines) keep it grounded."
+    },
+    "structural_format_compliance": {
+      "score": 100,
+      "verdict": "PASS",
+      "evidence": [],
+      "rationale": "H2 sub-headers throughout, exactly one continuous paragraph per section (confirmed by hardgate.py's paragraph_structure check), intro line before the first heading matches the established blog spacing standard."
+    },
+    "editorial_value": {
+      "score": 90,
+      "verdict": "PASS",
+      "evidence": [
+        "Contracted trainers work on a 90 percent commission split, a structural choice tied to Crow's stated position on fair pay for female, queer, and minority fitness professionals across the industry."
+      ],
+      "rationale": "Passes the So What test: a reader walks away knowing the exact address, the founder's certification and background, the specific life-stage programming logic, and a genuinely distinctive operational detail (the 90% commission split) that no generic competitor writeup would surface. Weakest line: 'Two specialties, two very different entry points, one programming philosophy behind both' is closer to a summary flourish than new information, though it closes a section rather than carrying the piece."
+    },
+    "factual_venue_integrity": {
+      "score": 85,
+      "verdict": "PASS",
+      "evidence": [
+        "At 2717 E Union St in Madrona"
+      ],
+      "rationale": "Address cross-confirmed across the studio's own site, a WebSearch aggregation, and a CanvasRebel founder interview within this session; founder bio (NASM cert, UW dance degree, martial arts background) sourced directly from the CanvasRebel interview; Instagram/LinkedIn handles verified live. Direct Yelp fetch returned 403 and was not independently confirmed beyond the search-snippet address match, so this stops short of a perfect score rather than treating the snippet as a full primary-source read. No hedge language present anywhere in the piece."
+    },
+    "seattle_local_specificity": {
+      "score": 95,
+      "verdict": "PASS",
+      "evidence": [
+        "Madrona sits on Seattle's east side, a short run down to Lake Washington and Madrona Park, a residential neighborhood with none of the commercial density of Capitol Hill or South Lake Union."
+      ],
+      "rationale": "Neighborhood-level detail (Madrona vs. Capitol Hill vs. South Lake Union), real geography (Lake Washington, Madrona Park), and a Seattle-specific comparison (franchise-gym scale vs. this private format) that could not be transplanted to another city without rewriting the piece."
+    },
+    "ai_pattern_detection": {
+      "score": 78,
+      "verdict": "PASS",
+      "evidence": [
+        "Six section paragraphs each run 80-150 words with fairly consistent internal cadence."
+      ],
+      "rationale": "No banned-vocab or rule-of-three padding, no generic transitional scaffolding ('That said,' / 'At the end of the day,'), no listicle cadence. The one real tell is that section-paragraph length is more uniform than a human editor writing freely tends to produce, which keeps this below a perfect score, but content specificity within each paragraph prevents it from reading as templated."
+    }
+  }
+}

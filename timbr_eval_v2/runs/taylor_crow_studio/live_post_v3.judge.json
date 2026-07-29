@@ -1,0 +1,51 @@
+{
+  "dimensions": {
+    "voice_brand_compliance": {
+      "score": 97,
+      "verdict": "PASS",
+      "evidence": [
+        "The programming runs by life stage. Not by template.",
+        "That's not marketing language. That's the actual stake."
+      ],
+      "rationale": "This draft actually lands the house voice's gold-standard example ('The same lifts. A smarter order.'): short declarative fragments, contractions throughout ('doesn't', 'it's', 'that's', 'nobody'), and a real edge in places ('That's not marketing language. That's the actual stake.') without tipping into hype. The prior draft was clean magazine prose; this one is closer to the clipped, fragment-driven register the voice guide actually specifies."
+    },
+    "structural_format_compliance": {
+      "score": 100,
+      "verdict": "PASS",
+      "evidence": [],
+      "rationale": "Same H2 structure, one continuous paragraph per section, confirmed clean by hardgate.py."
+    },
+    "editorial_value": {
+      "score": 90,
+      "verdict": "PASS",
+      "evidence": [
+        "Bone density work alone can be the difference between a fall and a fracture for a client in her sixties."
+      ],
+      "rationale": "The new additions (fracture-risk framing, aerial-as-standalone-discipline, the corporate-wellness/life-stage parallel) add real specificity rather than padding for word count. Nothing reads as filler."
+    },
+    "factual_venue_integrity": {
+      "score": 90,
+      "verdict": "PASS",
+      "evidence": [
+        "2717 E Union St. Madrona."
+      ],
+      "rationale": "All facts carried over unchanged from the verified v2 draft (address, founder bio, trainer roster, commission split). New sentences added are framing/analysis, not new factual claims requiring separate verification."
+    },
+    "seattle_local_specificity": {
+      "score": 92,
+      "verdict": "PASS",
+      "evidence": [
+        "Madrona sits on Seattle's east side, a short run down to Lake Washington, quiet in a way Capitol Hill and South Lake Union aren't."
+      ],
+      "rationale": "Unchanged from the prior pass — neighborhood-level detail intact."
+    },
+    "ai_pattern_detection": {
+      "score": 90,
+      "verdict": "PASS",
+      "evidence": [
+        "Different entry points. Same philosophy behind both."
+      ],
+      "rationale": "The fragment-heavy rewrite breaks up the paragraph-length uniformity flagged in the prior pass (varied sentence lengths within paragraphs now, short fragments mixed with longer sentences) and there's no rule-of-three construction anywhere in this draft."
+    }
+  }
+}

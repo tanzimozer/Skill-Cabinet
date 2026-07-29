@@ -1,0 +1,51 @@
+{
+  "dimensions": {
+    "voice_brand_compliance": {
+      "score": 95,
+      "verdict": "PASS",
+      "evidence": [
+        "The intake form is the fastest way in: Crow's team responds directly, not through a booking bot."
+      ],
+      "rationale": "The rule-of-three closing sentence flagged in the prior pass is gone. The new closer is short, declarative, and specific (booking bot as the implicit contrast) without tipping into hype. Nothing else in the piece scores lower than this on a re-read."
+    },
+    "structural_format_compliance": {
+      "score": 100,
+      "verdict": "PASS",
+      "evidence": [],
+      "rationale": "The kettlebell/equipment image now sits directly after 'The studio' section, the one that actually mentions equipment ('one room, real equipment'), resolving the placement mismatch from the prior pass. H2 and one-paragraph-per-section structure remain correct."
+    },
+    "editorial_value": {
+      "score": 90,
+      "verdict": "PASS",
+      "evidence": [
+        "The intake form is the fastest way in: Crow's team responds directly, not through a booking bot."
+      ],
+      "rationale": "The closing line now delivers a new, concrete, mildly differentiating detail (a human responds, not an automated system) instead of restating facts already established earlier in the piece. The rest of the piece was already strong on this dimension."
+    },
+    "factual_venue_integrity": {
+      "score": 92,
+      "verdict": "PASS",
+      "evidence": [
+        "\"A row of kettlebells on a gym floor, an illustrative equipment shot standing in for Taylor Crow Studio's private training room.\"",
+        "\"A group walking together down a city street, an illustrative stand-in for the group city walks in Taylor Crow Studio's corporate wellness track.\""
+      ],
+      "rationale": "Alt text now explicitly signals 'illustrative' / 'stand-in' rather than implying the photos document the actual business, resolving the ambiguity flagged in the prior pass. Body-text claims remain independently verified (address, founder bio, trainer roster) as in the prior pass. Not a perfect 100 since the underlying images are still generic stock rather than real venue photography, which is an inherent limitation of sourcing, not a copy defect."
+    },
+    "seattle_local_specificity": {
+      "score": 92,
+      "verdict": "PASS",
+      "evidence": [
+        "Madrona sits on Seattle's east side, a short run down to Lake Washington and Madrona Park, a residential neighborhood with none of the commercial density of Capitol Hill or South Lake Union."
+      ],
+      "rationale": "Unchanged from the prior pass on the text; the city-walk photo's non-Seattle streetscape is the same soft ding as before, now at least honestly labeled as illustrative rather than implied documentary, which is the most that copy-level fixes can address."
+    },
+    "ai_pattern_detection": {
+      "score": 85,
+      "verdict": "PASS",
+      "evidence": [
+        "Section paragraphs run 93, 123, 93, 113, and 101 words respectively across the middle five sections — a tighter band than free-written prose typically falls into."
+      ],
+      "rationale": "The tricolon closing sentence is gone — the single clearest AI-pattern tell in the piece. Section-paragraph length remains fairly uniform (93-140 words), which keeps this below a perfect score, but that alone is a much softer signal than a rule-of-three crutch landing in the last line of the piece."
+    }
+  }
+}

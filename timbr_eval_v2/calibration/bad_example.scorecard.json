@@ -1,0 +1,154 @@
+{
+  "overall": "FAIL",
+  "reason": "Tier-1 hard gate failure: em_dash: 2 em-dash character(s) found.; banned_vocab: 'bustling' x1; 'curated' x1; 'elevate' x1; 'empower' x1; 'foster' x2; 'holistic' x1; 'journey' x2; 'landscape' x1; 'optimize' x1; 'robust' x1; 'seamless' x1; 'seasoned' x1; 'unlock' x1; 'vibrant' x1; banned_phrase: 'in conclusion' x1; 'feel free to' x1; 'no excuses' x1; 'crush it' x1; 'wellness journey' x2; 'take it to the next level' x1; word_count: 183 words (range [800\u20131200] for 'blog_training').",
+  "hardgate": {
+    "content_type": "blog_training",
+    "word_count": 183,
+    "checks": [
+      {
+        "gate": "em_dash",
+        "blocking": true,
+        "passed": false,
+        "detail": "2 em-dash character(s) found."
+      },
+      {
+        "gate": "banned_vocab",
+        "blocking": true,
+        "passed": false,
+        "detail": "'bustling' x1; 'curated' x1; 'elevate' x1; 'empower' x1; 'foster' x2; 'holistic' x1; 'journey' x2; 'landscape' x1; 'optimize' x1; 'robust' x1; 'seamless' x1; 'seasoned' x1; 'unlock' x1; 'vibrant' x1"
+      },
+      {
+        "gate": "banned_phrase",
+        "blocking": true,
+        "passed": false,
+        "detail": "'in conclusion' x1; 'feel free to' x1; 'no excuses' x1; 'crush it' x1; 'wellness journey' x2; 'take it to the next level' x1"
+      },
+      {
+        "gate": "word_count",
+        "blocking": true,
+        "passed": false,
+        "detail": "183 words (range [800\u20131200] for 'blog_training')."
+      },
+      {
+        "gate": "passive_voice_rate",
+        "blocking": false,
+        "passed": false,
+        "detail": "1/12 sentences passive (8%)."
+      },
+      {
+        "gate": "second_person_coaching",
+        "blocking": false,
+        "passed": false,
+        "detail": "'you should' x2; 'your body' x1; 'try this' x1; 'you need to' x1; 'you can' x1"
+      },
+      {
+        "gate": "paragraph_structure",
+        "blocking": false,
+        "passed": false,
+        "detail": "1 section(s) have multiple paragraph breaks (should be one continuous paragraph per H2)."
+      }
+    ],
+    "blocking_failures": [
+      {
+        "gate": "em_dash",
+        "blocking": true,
+        "passed": false,
+        "detail": "2 em-dash character(s) found."
+      },
+      {
+        "gate": "banned_vocab",
+        "blocking": true,
+        "passed": false,
+        "detail": "'bustling' x1; 'curated' x1; 'elevate' x1; 'empower' x1; 'foster' x2; 'holistic' x1; 'journey' x2; 'landscape' x1; 'optimize' x1; 'robust' x1; 'seamless' x1; 'seasoned' x1; 'unlock' x1; 'vibrant' x1"
+      },
+      {
+        "gate": "banned_phrase",
+        "blocking": true,
+        "passed": false,
+        "detail": "'in conclusion' x1; 'feel free to' x1; 'no excuses' x1; 'crush it' x1; 'wellness journey' x2; 'take it to the next level' x1"
+      },
+      {
+        "gate": "word_count",
+        "blocking": true,
+        "passed": false,
+        "detail": "183 words (range [800\u20131200] for 'blog_training')."
+      }
+    ],
+    "warning_failures": [
+      {
+        "gate": "passive_voice_rate",
+        "blocking": false,
+        "passed": false,
+        "detail": "1/12 sentences passive (8%)."
+      },
+      {
+        "gate": "second_person_coaching",
+        "blocking": false,
+        "passed": false,
+        "detail": "'you should' x2; 'your body' x1; 'try this' x1; 'you need to' x1; 'you can' x1"
+      },
+      {
+        "gate": "paragraph_structure",
+        "blocking": false,
+        "passed": false,
+        "detail": "1 section(s) have multiple paragraph breaks (should be one continuous paragraph per H2)."
+      }
+    ],
+    "tier1_status": "FAIL"
+  },
+  "judge": {
+    "dimensions": {
+      "voice_brand_compliance": {
+        "score": 5,
+        "verdict": "FAIL",
+        "evidence": [
+          "a vibrant, holistic fitness destination \u2014 a true wellness journey for anyone ready to unlock their potential",
+          "You should try FitLife because you need to prioritize your health. You can feel the difference from day one. Your body will thank you."
+        ],
+        "rationale": "Fails the Forbes test on nearly every sentence \u2014 this could run unchanged in any generic wellness listicle. Second-person coaching register throughout ('you should', 'your body will thank you'), which the TIMBR voice guide explicitly bans outside sidebars."
+      },
+      "structural_format_compliance": {
+        "score": 15,
+        "verdict": "FAIL",
+        "evidence": [
+          "## Why you should try it"
+        ],
+        "rationale": "Section headers read as generic template scaffolding ('Why you should try it') rather than TIMBR's declarative house style. hardgate.py's paragraph_structure gate also caught a multi-paragraph section, violating the one-continuous-paragraph-per-H2 rule."
+      },
+      "editorial_value": {
+        "score": 0,
+        "verdict": "FAIL",
+        "evidence": [
+          "It's reportedly one of the most popular spots in the area, though exact numbers weren't available."
+        ],
+        "rationale": "Fails the So What test completely. No address, no founder name, no verifiable specifics of any kind. The piece is a template with 'FitLife Studio' substituted in and would read identically for any competitor. The line admitting 'exact numbers weren't available' is itself an admission that no real reporting happened."
+      },
+      "factual_venue_integrity": {
+        "score": 0,
+        "verdict": "FAIL",
+        "evidence": [
+          "It's reportedly one of the most popular spots in the area, though exact numbers weren't available."
+        ],
+        "rationale": "Automatic fail per RUBRIC.md: hedge language ('reportedly') signals an unverified claim that shipped anyway, which the venue-preflight certainty rule treats as a hard fail regardless of research trail state. No address, no named founder, nothing checkable exists in this piece to verify in the first place."
+      },
+      "seattle_local_specificity": {
+        "score": 0,
+        "verdict": "FAIL",
+        "evidence": [
+          "FitLife Studio is a vibrant, holistic fitness destination"
+        ],
+        "rationale": "Zero city or neighborhood references anywhere in the piece. This could run unchanged in Portland, Denver, or any city with the business name swapped, which is the exact failure condition this dimension exists to catch."
+      },
+      "ai_pattern_detection": {
+        "score": 5,
+        "verdict": "FAIL",
+        "evidence": [
+          "Whether you're a beginner or a seasoned athlete",
+          "whether you're looking to build strength, boost cardio, or just foster a healthier lifestyle",
+          "In conclusion, ... Feel free to stop by anytime \u2014 certainly a great way to start your wellness journey."
+        ],
+        "rationale": "Textbook AI-listicle tells: repeated rule-of-three constructions, generic transitional scaffolding ('In conclusion'), and a closing sentence that exists purely to wrap up rather than add information. This is close to a canonical example of the register the AI-pattern gate exists to catch."
+      }
+    }
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "overall": "NEEDS_REVISION",
+  "reason": "Tier-2 dimension(s) need revision: factual_venue_integrity, ai_pattern_detection",
+  "hardgate": {
+    "content_type": "blog_training",
+    "word_count": 850,
+    "checks": [
+      {
+        "gate": "em_dash",
+        "blocking": true,
+        "passed": true,
+        "detail": "Clean."
+      },
+      {
+        "gate": "banned_vocab",
+        "blocking": true,
+        "passed": true,
+        "detail": "Clean."
+      },
+      {
+        "gate": "banned_phrase",
+        "blocking": true,
+        "passed": true,
+        "detail": "Clean."
+      },
+      {
+        "gate": "word_count",
+        "blocking": true,
+        "passed": true,
+        "detail": "850 words (range [800\u20131200] for 'blog_training')."
+      },
+      {
+        "gate": "passive_voice_rate",
+        "blocking": false,
+        "passed": true,
+        "detail": "0/34 sentences passive (0%)."
+      },
+      {
+        "gate": "second_person_coaching",
+        "blocking": false,
+        "passed": true,
+        "detail": "Clean."
+      },
+      {
+        "gate": "paragraph_structure",
+        "blocking": false,
+        "passed": true,
+        "detail": "Clean."
+      }
+    ],
+    "blocking_failures": [],
+    "warning_failures": [],
+    "tier1_status": "PASS"
+  },
+  "judge": {
+    "dimensions": {
+      "voice_brand_compliance": {
+        "score": 88,
+        "verdict": "PASS",
+        "evidence": [
+          "Madrona sits close enough to reach from most of central Seattle inside twenty minutes, private enough that the room never fills past a handful of people at once, and specific enough in its programming that a client at any stage of the life cycle finds a plan built for the body they actually have that week, not the one a standard twelve-week template assumes."
+        ],
+        "rationale": "Strong throughout except the closing sentence, which stacks three parallel 'X enough that Y' clauses into one sentence \u2014 a rhetorical crutch that reads more like ad copy than TIMBR's clipped declarative register, and is long enough to strain the Forbes test even though its content is specific."
+      },
+      "structural_format_compliance": {
+        "score": 92,
+        "verdict": "PASS",
+        "evidence": [
+          "Kettlebell image sits between 'Private, by design' and 'Training built around the whole life cycle' but the kettlebell/equipment visual pairs more directly with 'The studio' section, which is the one that actually mentions equipment."
+        ],
+        "rationale": "H2 structure and one-paragraph-per-section rule are followed correctly (confirmed by hardgate.py). Image placement is serviceable but not tightly matched to adjacent content \u2014 a minor miss, not a structural violation."
+      },
+      "editorial_value": {
+        "score": 85,
+        "verdict": "PASS",
+        "evidence": [
+          "Madrona sits close enough to reach from most of central Seattle inside twenty minutes, private enough that the room never fills past a handful of people at once, and specific enough in its programming that a client at any stage of the life cycle finds a plan built for the body they actually have that week, not the one a standard twelve-week template assumes."
+        ],
+        "rationale": "The closing sentence restates facts already established earlier in the piece (neighborhood proximity, private/small-group format, life-stage programming) rather than closing on new, actionable booking information, even though the H2 promises 'Book a session.' Everything before it earns the So What test cleanly."
+      },
+      "factual_venue_integrity": {
+        "score": 60,
+        "verdict": "NEEDS_REVISION",
+        "evidence": [
+          "\"Rows of kettlebells on a gym floor, representing the private, real-equipment format of Taylor Crow Studio's training room.\"",
+          "\"A group walking together down a city street, representing Taylor Crow Studio's low-impact corporate wellness group walks.\""
+        ],
+        "rationale": "Both embedded images are generic stock photos, not photos of the actual studio or its actual walks (the city-walk photo is a European streetscape, not Seattle). The alt text's 'representing... Taylor Crow Studio's [X]' phrasing reads closer to a documentary claim than an illustrative one \u2014 a reader has no way to tell from the alt text alone that these aren't real photos of this business, which is the exact ambiguity [[timbr_venue_preflight]]'s honest-generic standard exists to prevent. All body text claims remain independently verified and unaffected."
+      },
+      "seattle_local_specificity": {
+        "score": 92,
+        "verdict": "PASS",
+        "evidence": [
+          "Madrona sits on Seattle's east side, a short run down to Lake Washington and Madrona Park, a residential neighborhood with none of the commercial density of Capitol Hill or South Lake Union."
+        ],
+        "rationale": "Neighborhood-level detail (Madrona vs. Capitol Hill vs. South Lake Union), real geography, Seattle-specific framing throughout the body text. The one soft deduction is the city-walk stock photo depicting a visibly non-Seattle street, which undercuts the section's local-specificity claim visually even though the text itself is strong."
+      },
+      "ai_pattern_detection": {
+        "score": 62,
+        "verdict": "NEEDS_REVISION",
+        "evidence": [
+          "Madrona sits close enough to reach from most of central Seattle inside twenty minutes, private enough that the room never fills past a handful of people at once, and specific enough in its programming that a client at any stage of the life cycle finds a plan built for the body they actually have that week..."
+        ],
+        "rationale": "The closing sentence is a textbook rule-of-three/tricolon ('X enough..., Y enough..., Z enough...') \u2014 exactly the crutch construction this dimension exists to catch, and it lands in the single most visible spot in the piece: the last line. Section-paragraph length is also fairly uniform (93-140 words each) as previously noted, which is a softer, secondary tell."
+      }
+    }
+  }
+}
