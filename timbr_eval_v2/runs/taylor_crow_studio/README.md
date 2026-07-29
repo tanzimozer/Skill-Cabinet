@@ -41,3 +41,20 @@ All three previously-flagged issues resolved; `factual_venue_integrity` 60→92,
 `ai_pattern_detection` 62→85, `structural_format_compliance` 92→100. Overall: PASS.
 
 Live post: https://www.seattlefitnessmag.com/post/inside-taylor-crow-studio-madrona-s-training-ground-for-every-stage-of-a-woman-s-life
+
+## v3 — full tonality reimagine + real photography
+
+`live_post_v3.md` / `live_post_v3.judge.json` / `live_post_v3.scorecard.json`
+
+Owner feedback on v2: "the article needs to be better in writing, it has to go with our
+tonality. reimagine it." Rewrote every section from clean magazine-editorial prose into
+[[timbr_voice]]'s actual specified register — short fragments, contractions, an edge
+("That's not marketing language. That's the actual stake.") — matching the voice guide's own
+gold-standard example ("The same lifts. A smarter order.") instead of approximating it.
+`voice_brand_compliance` 95→97, `ai_pattern_detection` 85→90.
+
+Also swapped all imagery: owner supplied real photos of Taylor Crow herself (confirmed rights/
+permission in chat before use — these are not stock, and using an identifiable named person's
+photo without that confirmation would have violated [[timbr_image_tonality]]'s no-identifiable-
+face hard rule). Cover image is now a real training-floor action shot; two body portraits replace
+the generic stock kettlebell/city-walk photos entirely. Overall: PASS.
