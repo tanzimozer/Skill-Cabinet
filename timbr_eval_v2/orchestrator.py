@@ -93,7 +93,12 @@ def print_report(result):
         print(f"{c['gate']:<26}{status:<10}{c['detail']}")
     print()
 
-    if result["judge"]:
+    if result["overall"] == "INVALID_JUDGE_OUTPUT":
+        print("Tier 2 — judge output failed schema validation:")
+        for e in result["judge_errors"]:
+            print(f"    ✗ {e}")
+        print()
+    elif result.get("judge"):
         print("Tier 2 — Judge Rubric")
         print(f"{'Dimension':<32}{'Score':<8}{'Verdict'}")
         print("-" * 64)
