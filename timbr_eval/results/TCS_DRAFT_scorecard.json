@@ -1,0 +1,36 @@
+{
+  "issue_id": "TCS.DRAFT",
+  "overall": "PASS",
+  "sections": {
+    "Training": {
+      "voice_score": 80,
+      "voice_passed": true,
+      "prohib_score": 100,
+      "prohib_passed": true,
+      "violations": [
+        "Cross-contamination: section scores 100 on people voice (required: athletic)",
+        "Cross-contamination: section scores 55 on fitt voice (required: athletic)"
+      ],
+      "status": "PASS"
+    }
+  },
+  "blocking_violations": [
+    "Cross-contamination: section scores 100 on people voice (required: athletic)",
+    "Cross-contamination: section scores 55 on fitt voice (required: athletic)"
+  ],
+  "issue_level_checks": {
+    "violations": [
+      "Mandatory element missing: workout plan rep/set notation (e.g. '3x8', '4 sets', 'reps'). Penalty: -25.",
+      "Mandatory element missing: Nutrition section needs \u22654 named places with addresses/neighbourhoods (found ~0). Penalty: -25."
+    ],
+    "penalty": -50,
+    "passed": false,
+    "element_results": {
+      "workout_plan_rep_set": false,
+      "nutrition_spots_4_places": false,
+      "local_fitness_spots_2": true,
+      "location_features_3_places": true
+    }
+  },
+  "generated_at": "2026-07-29T12:46:30.532196"
+}
