@@ -5,14 +5,21 @@ orchestrator.py — TIMBR Eval Harness Orchestrator.
 Runs the linters over one submission and emits a scorecard (stdout table +
 JSON on disk). Two product lines, two rulesets:
 
-    magazine (default)   ProhibLint (magazine ruleset) + VoiceLint, over the
-                         7 magazine sections. CharLint does NOT apply: that
-                         line is governed by word counts, not char locks.
+    magazine (default)   ProhibLint (magazine ruleset) + VoiceLint + SynthLint,
+                         over the 7 magazine sections. CharLint does NOT apply:
+                         that line is governed by word counts, not char locks.
 
-    workout_series       ProhibLint (workout_series ruleset) + CharLint, over
-                         the char-locked SLOTS of a locks file. VoiceLint does
-                         NOT apply: its section/voice map is built for the
-                         magazine's 7 sections.
+    workout_series       ProhibLint (workout_series ruleset) + CharLint +
+                         SynthLint, over the char-locked SLOTS of a locks file.
+                         VoiceLint does NOT apply: its section/voice map is
+                         built for the magazine's 7 sections.
+
+SynthLint is on BOTH lines and is the only linter with no ruleset switch:
+"does this read as machine-written" is a defect whatever the product line, so
+it is run on every unit of every submission and never routed around. Its
+verdict is a BLOCKING member of the per-unit conjunction, exactly like the
+ruleset-aware ones — a unit that clears every other check and fails SynthLint
+fails, and a failed unit fails the run.
 
 Usage:
     python3 orchestrator.py --issue issue.json
@@ -66,6 +73,12 @@ SCORECARD JSON — documented keys (see SCORECARD_KEYS)
                               ALWAYS contains every expected unit; units the run
                               never reached carry status "NOT_EVALUATED" and null
                               scores, so a partial run can never read as complete.
+                              Per-unit score fields, one <name>_score /
+                              <name>_passed pair per linter that ran:
+                                magazine        prohib_*, voice_*, synth_*
+                                workout_series  char_*,   prohib_*, synth_*
+                              plus `violations` (every finding from every linter
+                              that looked at the unit), `status` and `present`.
     blocking_violations       first 10 BLOCKING violations — the findings that
                               actually cost the run its PASS: violations from a
                               check that failed, the issue-level violations when
@@ -83,6 +96,9 @@ SCORECARD JSON — documented keys (see SCORECARD_KEYS)
                               owner-governed slot nobody supplied, a candidate
                               that arrived in a non-NFC spelling). Never affect
                               `overall` or the exit code, and are never dropped.
+                              CharLint is the ONLY source: ProhibLint, VoiceLint
+                              and SynthLint have no warnings channel, and one is
+                              not invented for them here.
     issue_level_checks        ProhibLint's mandatory-element block, plus
                               "applicable" (false for workout_series — those
                               checks are magazine Editorial Handbook rules) and
@@ -173,9 +189,21 @@ sys.path.insert(0, str(HERE / "prohiblint"))
 sys.path.insert(0, str(HERE / "voicelint"))
 sys.path.insert(0, str(HERE / "charlint"))
 
+#: SynthLint is reached as the PACKAGE (synthlint/__init__.py), not as the flat
+#: synthlint/synthlint.py the three names above resolve to. Its own suite is
+#: collected as `synthlint.test_synthlint` from the repo root and imports that
+#: package, so binding this name to the inner module would put two different
+#: objects called "synthlint" in one interpreter and make the verdict depend on
+#: which one got imported first. HERE is already on sys.path in every supported
+#: entry point; it is APPENDED rather than inserted so it can only add a
+#: fallback and can never shadow the three flat modules above.
+if str(HERE) not in sys.path:
+    sys.path.append(str(HERE))
+
 import prohiblint  # noqa: E402
 import voicelint  # noqa: E402
 import charlint  # noqa: E402
+import synthlint  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -208,6 +236,16 @@ VOICELINT_NA_REASON = (
 CHARLINT_NA_REASON = (
     "The magazine line is governed by word counts, not char locks; CharLint "
     "does not apply."
+)
+#: There is no SynthLint N/A reason, and there is deliberately no place to put
+#: one. The other three linters are ruleset-aware and two of them sit out a
+#: line; SynthLint takes one string, has no ruleset parameter, and asks a
+#: question no product line is exempt from.
+SYNTHLINT_UNIVERSAL_NOTE = (
+    "SynthLint has no ruleset switch and no opt-out: reading as machine-written "
+    "is a defect on every TIMBR product line, so it runs on every unit of both "
+    "rulesets — magazine section and workout_series slot alike — and its verdict "
+    "blocks exactly like the ruleset-aware linters' do."
 )
 ISSUE_LEVEL_NA_REASON = (
     "ProhibLint's mandatory-element checks (rep/set notation, >=4 named "
@@ -399,6 +437,12 @@ def _not_evaluated_unit(ruleset, present):
     unit = {
         "prohib_score": None,
         "prohib_passed": None,
+        # SynthLint runs on both lines, so its pair lives in the shared block
+        # and is nulled for a skipped unit on both lines. A default of 100 (or
+        # of `passed: True`) here would make the one universal check the one
+        # field that reads clean on copy nobody read.
+        "synth_score": None,
+        "synth_passed": None,
         "violations": [],
         "status": STATUS_NOT_EVALUATED,
         "present": present,
@@ -481,6 +525,30 @@ def _linter_section(results, section, linter):
     return verdict
 
 
+def _synth_result(text, name):
+    """
+    SynthLint's verdict for ONE unit's text, on either product line.
+
+    Note the shape difference from the other three: `run_synthlint` takes one
+    STRING, not a {name: text} map, and there is no ruleset argument to thread
+    through — that is the point of the module. The pass/fail threshold lives
+    inside SynthLint and is read off `passed`; this file never re-derives it,
+    so moving that threshold cannot silently disagree with the gate.
+
+    Guarded the same way `_linter_section` guards the magazine pair: SynthLint
+    is a blocking gate, so a call that comes back without a boolean verdict is
+    an error and never a pass.
+    """
+    verdict = synthlint.run_synthlint(text)
+    if not isinstance(verdict, dict) or not isinstance(verdict.get("passed"), bool):
+        raise EvalHarnessError(
+            f"SynthLint returned no usable verdict for {name!r} (got "
+            f"{verdict!r}). SynthLint blocks on both rulesets; a missing "
+            f"verdict is not a pass."
+        )
+    return verdict
+
+
 # ---------------------------------------------------------------------------
 # magazine ruleset
 # ---------------------------------------------------------------------------
@@ -517,6 +585,12 @@ def _evaluate_magazine(sections, fail_fast, source="<issue>"):
                 "voice_passed": False,
                 "prohib_score": None,
                 "prohib_passed": False,
+                # False, not None: an absent section is evaluated and fails
+                # every gate, SynthLint included. One MISSING SECTION message
+                # covers all of them — a linter that never saw any text does
+                # not get to file a finding of its own.
+                "synth_score": None,
+                "synth_passed": False,
                 "violations": [missing],
                 "status": STATUS_FAIL,
                 "present": False,
@@ -533,23 +607,30 @@ def _evaluate_magazine(sections, fail_fast, source="<issue>"):
                 prohiblint.run_prohiblint({section: text}, ruleset=MAGAZINE).get("sections"),
                 section, "ProhibLint")
             v = _linter_section(voicelint.run({section: text}), section, "VoiceLint")
+            s = _synth_result(text, section)
 
             prohib_pass = p["passed"]
             voice_pass = v["passed"]
+            synth_pass = s["passed"]
             prohib_violations = list(p.get("violations", []))
             voice_flags = list(v.get("contamination_flags", []))
+            synth_violations = list(s.get("violations", []))
 
-            # BOTH linters gate the magazine line. Dropping either one from
-            # this conjunction is the single worst regression available to this
-            # file, so it is spelled out rather than folded into a helper.
-            passed = prohib_pass and voice_pass
+            # ALL THREE linters gate the magazine line. Dropping any one of
+            # them from this conjunction is the single worst regression
+            # available to this file, so it is spelled out rather than folded
+            # into a helper. SynthLint is a full member: a section that clears
+            # ProhibLint and VoiceLint and reads as machine-written fails.
+            passed = prohib_pass and voice_pass and synth_pass
 
             units[section] = {
                 "voice_score": v.get("voice_score", 0),
                 "voice_passed": voice_pass,
                 "prohib_score": p.get("score", 100),
                 "prohib_passed": prohib_pass,
-                "violations": prohib_violations + voice_flags,
+                "synth_score": s.get("score"),
+                "synth_passed": synth_pass,
+                "violations": prohib_violations + voice_flags + synth_violations,
                 "status": STATUS_PASS if passed else STATUS_FAIL,
                 "present": True,
             }
@@ -557,9 +638,11 @@ def _evaluate_magazine(sections, fail_fast, source="<issue>"):
             # anything, and calling it a blocking violation is how a green run
             # ends up reporting a violation count.
             blocking[section] = ((prohib_violations if not prohib_pass else [])
-                                 + (voice_flags if not voice_pass else []))
+                                 + (voice_flags if not voice_pass else [])
+                                 + (synth_violations if not synth_pass else []))
             advisory[section] = ((prohib_violations if prohib_pass else [])
-                                 + (voice_flags if voice_pass else []))
+                                 + (voice_flags if voice_pass else [])
+                                 + (synth_violations if synth_pass else []))
 
         if fail_fast and units[section]["status"] == STATUS_FAIL:
             truncated_at = section
@@ -602,6 +685,8 @@ def _evaluate_magazine(sections, fail_fast, source="<issue>"):
             "prohiblint": {"applied": True, "ruleset": MAGAZINE},
             "voicelint": {"applied": True},
             "charlint": {"applied": False, "reason": CHARLINT_NA_REASON},
+            "synthlint": {"applied": True, "universal": True,
+                          "note": SYNTHLINT_UNIVERSAL_NOTE},
         },
     }
 
@@ -662,6 +747,8 @@ def _evaluate_workout_series(slots, locks_path, fail_fast, source="<issue>"):
             "failure_mode": c.get("failure_mode"),
             "prohib_score": None,
             "prohib_passed": None,
+            "synth_score": None,
+            "synth_passed": None,
             "violations": list(c.get("violations", [])),
             "present": present,
         }
@@ -670,6 +757,8 @@ def _evaluate_workout_series(slots, locks_path, fail_fast, source="<issue>"):
         char_violations = list(c.get("violations", []))
         prose_violations = []
         prose_passed = None
+        synth_violations = []
+        synth_passed = None
 
         # Prose is linted only where there is prose to lint, and only when the
         # loop actually reaches this slot — so --fail-fast genuinely stops the
@@ -684,13 +773,34 @@ def _evaluate_workout_series(slots, locks_path, fail_fast, source="<issue>"):
             unit["prohib_passed"] = prose_passed
             unit["violations"].extend(prose_violations)
 
-        passed = char_passed and prose_passed is not False
+        # SynthLint has no allowlist of slots to sit out. The ONE condition
+        # here is `present` — an unfilled slot has no text, and CharLint has
+        # already failed it NOT FILLED — and note that this is a WEAKER
+        # condition than the prose block above: a PERMANENT slot is skipped by
+        # ProhibLint and still read by SynthLint, because "does this read as
+        # machine-written" is a question about a string rather than about who
+        # is allowed to edit it. Nothing here keys off the slot's type, its
+        # page, or whether its text is prose or a locked exercise table — the
+        # spec-list case is handled inside SynthLint, on the shape of the text.
+        if present:
+            s = _synth_result(slots[name], name)
+            synth_passed = s["passed"]
+            synth_violations = list(s.get("violations", []))
+            unit["synth_score"] = s.get("score")
+            unit["synth_passed"] = synth_passed
+            unit["violations"].extend(synth_violations)
+
+        passed = (char_passed
+                  and prose_passed is not False
+                  and synth_passed is not False)
         unit["status"] = STATUS_PASS if passed else STATUS_FAIL
         units[name] = unit
         blocking[name] = ((char_violations if not char_passed else [])
-                          + (prose_violations if prose_passed is False else []))
+                          + (prose_violations if prose_passed is False else [])
+                          + (synth_violations if synth_passed is False else []))
         advisory[name] = ((char_violations if char_passed else [])
-                          + (prose_violations if prose_passed is not False else []))
+                          + (prose_violations if prose_passed is not False else [])
+                          + (synth_violations if synth_passed is not False else []))
 
         if fail_fast and unit["status"] == STATUS_FAIL:
             truncated_at = name
@@ -727,6 +837,8 @@ def _evaluate_workout_series(slots, locks_path, fail_fast, source="<issue>"):
             "prohiblint": {"applied": True, "ruleset": WORKOUT_SERIES},
             "voicelint": {"applied": False, "reason": VOICELINT_NA_REASON},
             "charlint": {"applied": True, "locks": str(locks_path)},
+            "synthlint": {"applied": True, "universal": True,
+                          "note": SYNTHLINT_UNIVERSAL_NOTE},
         },
     }
 
@@ -756,21 +868,22 @@ def _status_cell(status):
 
 
 def _print_magazine_table(units):
-    print(f"{'Section':<14} {'Voice':>6} {'Prohib':>7} {'Status':>8}")
-    print(f"{'-'*14} {'-'*6} {'-'*7} {'-'*8}")
+    print(f"{'Section':<14} {'Voice':>6} {'Prohib':>7} {'Synth':>6} {'Status':>8}")
+    print(f"{'-'*14} {'-'*6} {'-'*7} {'-'*6} {'-'*8}")
     for sec, res in units.items():
         print(f"{sec:<14} {_fmt(res['voice_score'], 5)}  {_fmt(res['prohib_score'], 6)}  "
-              f"{_status_cell(res['status'])}")
+              f"{_fmt(res['synth_score'], 5)}  {_status_cell(res['status'])}")
 
 
 def _print_workout_series_table(units):
-    print(f"{'Slot':<16} {'Lock':>6} {'Actual':>7} {'Delta':>7} {'Prohib':>7} {'Status':>8}")
-    print(f"{'-'*16} {'-'*6} {'-'*7} {'-'*7} {'-'*7} {'-'*8}")
+    print(f"{'Slot':<16} {'Lock':>6} {'Actual':>7} {'Delta':>7} {'Prohib':>7} "
+          f"{'Synth':>6} {'Status':>8}")
+    print(f"{'-'*16} {'-'*6} {'-'*7} {'-'*7} {'-'*7} {'-'*6} {'-'*8}")
     for slot, res in units.items():
         delta = res["char_delta"]
         delta_cell = "—" if delta is None else f"{delta:+d}"
         print(f"{slot:<16} {_fmt(res['char_expected'], 6)} {_fmt(res['char_actual'], 7)} "
-              f"{delta_cell:>7} {_fmt(res['prohib_score'], 7)}  "
+              f"{delta_cell:>7} {_fmt(res['prohib_score'], 7)} {_fmt(res['synth_score'], 6)}  "
               f"{_status_cell(res['status'])}")
 
 

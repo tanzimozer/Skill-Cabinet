@@ -4,6 +4,13 @@ Automated quality gate for TIMBR copy. Runs linters over one submission and prod
 scorecard (console table + JSON on disk). It supports **two product lines**, gated by different
 rulesets and different linter combinations — see "Two Rulesets" below before running anything.
 
+There are **four** linters. Three are ruleset-aware and two of those sit out a product line
+(VoiceLint does not run on `workout_series`; CharLint does not run on `magazine`). The fourth,
+**SynthLint, has no ruleset switch and no opt-out**: it runs on every unit of every submission,
+because "this reads as machine-written" is a defect on both product lines. Every unit's verdict is
+the **conjunction** of the linters that looked at it — three per line — and one failed unit fails
+the run.
+
 ---
 
 ## Quick Start
@@ -41,15 +48,15 @@ Recovery) and every section far under its magazine word-count floor, so a defaul
 ```
 $ python3 orchestrator.py --issue sample_issue.json
 ...
-Section         Voice  Prohib   Status
--------------- ------ ------- --------
-Training         100      80  ❌ FAIL
-Nutrition        100      80  ❌ FAIL
-Supplements      100      75  ❌ FAIL
-Recovery         100      75  ❌ FAIL
-Culture          100      80  ❌ FAIL
-Social           100      80  ❌ FAIL
-Nightlife        100      80  ❌ FAIL
+Section         Voice  Prohib  Synth   Status
+-------------- ------ ------- ------ --------
+Training         100      80    100  ❌ FAIL
+Nutrition        100      80    100  ❌ FAIL
+Supplements      100      75    100  ❌ FAIL
+Recovery         100      75    100  ❌ FAIL
+Culture          100      80    100  ❌ FAIL
+Social           100      80    100  ❌ FAIL
+Nightlife        100      80    100  ❌ FAIL
 ────────────────────────────────────────────────────────────
   RUN: complete (7 section(s) evaluated, 7 required by the ruleset)
   OVERALL: FAIL
@@ -64,8 +71,8 @@ Scorecard written: results/VOL_04_scorecard.json
 
 This is real, current output — not an invented example. All 7 sections fail on word count alone
 (the sample text is much shorter than the magazine ranges); Supplements and Recovery additionally
-carry one planted AI-blocklist word each ("delve", "vibrant"). Voice scores are a clean 100 across
-the board — none of this failure is a VoiceLint problem.
+carry one planted AI-blocklist word each ("delve", "vibrant"). Voice and Synth scores are a clean
+100 across the board — none of this failure is a VoiceLint or a SynthLint problem.
 
 ---
 
@@ -87,9 +94,18 @@ python3 orchestrator.py --issue slots.json --ruleset workout_series \
 | Unit names | the 7 fixed magazine sections | whatever `--locks` defines |
 | Em-dash rule | **any** em-dash is a hard fail | one em-dash **aside** per sentence is legal (a matched pair bracketing a phrase is one aside); only *stacked* (2+ asides in one sentence) hard-fails |
 | Length gate | ProhibLint word-count ranges | CharLint exact character-count locks (`--locks`) |
-| Linters run | ProhibLint (magazine mode) + VoiceLint | ProhibLint (workout_series mode) + CharLint |
+| Linters run | ProhibLint (magazine mode) + VoiceLint + **SynthLint** | ProhibLint (workout_series mode) + CharLint + **SynthLint** |
 | Linter **not** run | CharLint (word counts, not char locks) | VoiceLint (its register map is built for the 7 magazine sections) |
+| SynthLint | **runs** — no ruleset switch, no opt-out | **runs** — same module, same call, same threshold |
 | Issue-level mandatory elements (ProhibLint Check F) | applicable | **not** applicable (Editorial Handbook rules; this line is gated by CharLint instead) |
+
+**The gate is a three-way conjunction on each line**, and SynthLint is a full blocking member of
+both. A section that clears ProhibLint and VoiceLint and still reads as machine-written **fails**;
+a slot that lands its char lock to the character and clears ProhibLint and still reads as
+machine-written **fails**. SynthLint is the only linter with no `ruleset` parameter to thread
+through and no slot type it skips — the false positive it once had on the locked exercise tables
+was fixed inside SynthLint itself, on the shape of the text, rather than by giving the orchestrator
+a list of slots to route around.
 
 **Pick `magazine`** for the 7-section magazine issue copy (Training/Nutrition/.../Nightlife).
 **Pick `workout_series`** for Workout Series (Seattle Series) volumes — the char-locked cover,
@@ -241,8 +257,8 @@ four elements, not five.)
 ### VoiceLint (`voicelint/voicelint.py`) — see `voicelint/README.md`
 
 **magazine only** — not run under `workout_series` (its section/voice map is built for the
-magazine's 7 sections; that line's register discipline is enforced by ProhibLint + CharLint
-instead).
+magazine's 7 sections; that line's register discipline is enforced by ProhibLint + CharLint +
+SynthLint instead).
 
 Maps each section to one of **three** registers via `SECTION_VOICE_MAP` — not seven bespoke
 per-section voices:
@@ -279,12 +295,58 @@ calibration corpora behind `CROSS_CONTAMINATION_MARGIN`.
 **workout_series only.** Enforces the exact character-count locks from PRINCIPLES.txt Section 3
 against the 7 named slots in a locks file (e.g. `charlint/locks_seattle_series.json`). Covers
 **only** those 7 slots — not every dynamic text slot in a full volume — and a full pass on CharLint
-is not evidence the rest of the volume is count-clean. Also carries an open, real, currently-warning
-drift: the `cover_body` slot's documented lock (PRINCIPLES.txt: 357) disagrees with the live Canva
-template's measured length (351) — CharLint enforces the live 351 and warns about the disagreement
-on every single run until the owner reconciles the two numbers. Full detail, including the
-locks-file format, overflow-vs-underfill, permanent-slot protection, and the drift mechanism, is in
-`charlint/README.md`.
+is not evidence the rest of the volume is count-clean. CharLint is also the **only** source of
+`warnings` (drift, un-gated slots, unsubmitted owner-governed slots, non-NFC candidates); the other
+three linters have no warnings channel and the orchestrator does not invent one for them. The
+shipped locks file currently raises **no** drift warning — `cover_body` is range-locked to 350–358
+(the master workbook's band), so the old "documented 357 vs measured 351" disagreement was a point
+being compared to a range and is not a drift;
+`test_orchestrator.py::test_the_shipped_locks_file_raises_no_drift` pins that.
+Full detail, including the locks-file format, overflow-vs-underfill,
+permanent-slot protection, and the drift mechanism, is in `charlint/README.md`.
+
+### SynthLint (`synthlint/synthlint.py`) — see `synthlint/README.md`
+
+**Both rulesets, every unit, no exceptions.** The other three linters ask what the handbook bans,
+which register the copy is in, and whether it fits the layout. SynthLint asks the one question none
+of them asks: **does this read like a machine wrote it?**
+
+```python
+run_synthlint(text) -> {"violations": [str], "score": int, "passed": bool, "flags": {...}}
+```
+
+Note the shape difference from the other three: it takes **one string**, not a `{name: text}` map,
+and there is **no `ruleset` parameter** — that is the design, not an omission. It raises `TypeError`
+rather than silently scoring something if handed a dict.
+
+Six checks, every threshold derived from measured corpora rather than chosen:
+
+| # | Check | Fires on |
+|---|---|---|
+| 1 | Extended AI vocabulary | phrasal scaffolding (`it's important to note`, `when it comes to`, ...); hard fail at 5 hits |
+| 2 | Formulaic transition density | ≥2 paragraph-**initial** connectives at a rate > 0.20 |
+| 3 | Contrastive-frame overuse | ≥2 compressed `not just X, it's Y` pivots per 250 words |
+| 4 | Hedge stacking | two hedges compounding on one proposition; hard fail at 3 |
+| 5 | Sentence-length burstiness | CV < 0.29 (flattest real TIMBR text measured 0.3867) |
+| 6 | Repeated-opener runs | same first word ×4, or generic-class opener ×3 |
+
+**Pass threshold: 84** — `synthlint.PASS_THRESHOLD`, derived as `100 - 2 × 8`: a text may carry a
+2-tell noise budget, and the budget is 2 because the 29-text real-TIMBR corpus carries **0** tells
+while the weakest adversarial text carries **3**. Two rather than zero makes corroboration
+structural — no single regex match can fail owner-approved copy on its own. **`orchestrator.py`
+never writes that number down**; it reads `passed` off the verdict, so moving the threshold cannot
+leave the gate disagreeing with the module — the test
+`test_the_orchestrator_never_hard_codes_synthlints_pass_threshold` greps the source to keep it
+that way.
+
+What it deliberately does **not** do: em-dashes (ProhibLint owns them, and it counts *asides*),
+"is this paragraph filler" (the editorial board's call), vocabulary diversity, and rule-of-three
+rate — that last one was built, measured, and **dropped**, because real TIMBR copy uses triads
+*more* than the adversarial corpus does, so no threshold fires on slop before it fires on the house
+voice. Check 5 is the one with a shape-dependent unit: on an enumerated spec list (PRINCIPLES.txt
+Sec. 12's locked exercise table) it measures the longest free-text field of each row rather than
+the row, because a templated table is uniform by format. It is never switched off for a shape the
+writer controls. See `synthlint/README.md` for every derivation and the held-out validation split.
 
 ---
 
@@ -292,35 +354,35 @@ locks-file format, overflow-vs-underfill, permanent-slot protection, and the dri
 
 ### Console
 
-Standard mode prints a table (shape depends on `ruleset`) followed by a run summary. magazine
-example is under "Quick Start" above. workout_series example — real output, the raw Seattle Series
-baseline text (unmodified — see "Two Rulesets" above for the em-dash-check-only numbers) through
-`--ruleset workout_series`:
+Standard mode prints a table (shape depends on `ruleset`) followed by a run summary — one score
+column per linter that ran, so the magazine table carries Voice/Prohib/Synth and the workout_series
+table carries Lock/Actual/Delta/Prohib/Synth. The magazine example is under "Quick Start" above.
+workout_series example — real output, the raw Seattle Series baseline text (unmodified — see "Two
+Rulesets" above for the em-dash-check-only numbers) through `--ruleset workout_series`:
 
 ```
-Slot               Lock  Actual   Delta  Prohib   Status
----------------- ------ ------- ------- ------- --------
-cover_body          351     351      +0     100  ✅ PASS
-city_intro          628     628      +0     100  ✅ PASS
-anchor_venue        667     667      +0     100  ✅ PASS
-anchor_cafe         694     694      +0     100  ✅ PASS
-counter_venue       602     602      +0     100  ✅ PASS
-counter_cafe        414     414      +0     100  ✅ PASS
-night_page          616     616      +0      95  ❌ FAIL
-
-  WARNINGS (1) — not failures, exit code unaffected:
-    • DRIFT: cover_body — PRINCIPLES.txt documents a lock of 357, the template measures 351 (drift -6). ...
+Slot               Lock  Actual   Delta  Prohib  Synth   Status
+---------------- ------ ------- ------- ------- ------ --------
+cover_body          351     351      +0     100    100  ✅ PASS
+city_intro          628     628      +0     100    100  ✅ PASS
+anchor_venue        667     667      +0     100    100  ✅ PASS
+anchor_cafe         694     694      +0     100    100  ✅ PASS
+counter_venue       602     602      +0     100    100  ✅ PASS
+counter_cafe        414     414      +0     100    100  ✅ PASS
+night_page          616     616      +0     100    100  ✅ PASS
 
 ────────────────────────────────────────────────────────────
   RUN: complete (7 slot(s) evaluated, 7 required by the ruleset)
-  OVERALL: FAIL
-  TOP VIOLATIONS (1 blocking):
-    • Exclamation point found: 1 instance(s). Banned outright under workout_series ruleset (PRINCIPLES.txt Sec. 7). Hard fail.
+  OVERALL: PASS
 ────────────────────────────────────────────────────────────
 ```
 
-Only `night_page` fails, on Check H (one exclamation point in "Take the night — cheers!") — not on
-em-dashes.
+All 7 pass, with no warnings. Two things in this block used to read differently and are worth
+naming rather than quietly editing: `night_page` used to fail Check H on one exclamation point
+("Take the night — cheers!"), which the shipped baseline no longer carries, and the run used to
+emit a `DRIFT: cover_body` warning, which the range lock retired (see CharLint above). **SynthLint
+scores all 7 of these baselines 100 — this is the owner's real, live Canva template content, and
+the universal AI-fingerprint check has nothing to say about it.**
 
 ### JSON Output
 
@@ -350,12 +412,14 @@ ruleset, from the "Quick Start" run above:
   "linters": {
     "prohiblint": {"applied": true, "ruleset": "magazine"},
     "voicelint":  {"applied": true},
-    "charlint":   {"applied": false, "reason": "The magazine line is governed by word counts, not char locks; CharLint does not apply."}
+    "charlint":   {"applied": false, "reason": "The magazine line is governed by word counts, not char locks; CharLint does not apply."},
+    "synthlint":  {"applied": true, "universal": true, "note": "SynthLint has no ruleset switch and no opt-out: ..."}
   },
   "sections": {
     "Training": {
       "voice_score": 100, "voice_passed": true,
       "prohib_score": 80, "prohib_passed": false,
+      "synth_score": 100, "synth_passed": true,
       "violations": ["Word count 177 is outside allowed range [800–1200] for section 'Training'."],
       "status": "FAIL", "present": true
     }
@@ -386,11 +450,21 @@ Notes on the keys:
   that actually failed; advisory notes are penalty-only findings from a check that *passed* — both
   linters can emit these, and routing a passing check's findings into `blocking_violations` is what
   previously produced a run reporting `PASS` next to a nonzero blocking-violation count.
+- Every unit carries **one `<linter>_score` / `<linter>_passed` pair per linter that looked at it**:
+  `prohib_*`, `voice_*` and `synth_*` under magazine; `char_*`, `prohib_*` and `synth_*` under
+  workout_series. `synth_score`/`synth_passed` are present on **both** lines — that pair is the
+  one field set the two rulesets share, because SynthLint is the one linter both lines run.
 - Under `workout_series`, the per-unit container key is `"slots"` (not `"sections"`), each unit
   carries `char_expected`/`char_actual`/`char_delta`/`char_score`/`char_passed`/`failure_mode`
   instead of `voice_score`/`voice_passed`, and `issue_level_checks.applicable` is `false`.
+- SynthLint's findings land in the unit's `violations` list exactly like ProhibLint's, and split
+  into `blocking_violations` / `advisory_notes` by the same rule: blocking when SynthLint failed
+  the unit, advisory when it passed. SynthLint scores several findings a unit can carry and still
+  pass (a single contrastive pivot, a single hedge stack), so the advisory case is a live one.
 - `warnings` is always present (an empty list under magazine, since CharLint is the only source of
-  warnings today) and never affects `overall` or the exit code.
+  warnings today) and never affects `overall` or the exit code. **SynthLint has no warnings
+  channel** — its result is `violations`/`score`/`passed`/`flags` and nothing else — and the
+  orchestrator does not invent one for it.
 
 A **fail-fast** run produces a self-describing, explicitly **partial** scorecard rather than a
 scorecard that merely stops short. Real output, `--fail-fast` on the sample issue:
@@ -398,15 +472,15 @@ scorecard that merely stops short. Real output, `--fail-fast` on the sample issu
 ```
 FAIL-FAST: section 'Training' failed. Stopping — 6 section(s) will NOT be evaluated.
 
-Section         Voice  Prohib   Status
--------------- ------ ------- --------
-Training         100      80  ❌ FAIL
-Nutrition          —       —  ⏭ NOT_EVALUATED
-Supplements        —       —  ⏭ NOT_EVALUATED
-Recovery           —       —  ⏭ NOT_EVALUATED
-Culture            —       —  ⏭ NOT_EVALUATED
-Social             —       —  ⏭ NOT_EVALUATED
-Nightlife          —       —  ⏭ NOT_EVALUATED
+Section         Voice  Prohib  Synth   Status
+-------------- ------ ------- ------ --------
+Training         100      80    100  ❌ FAIL
+Nutrition          —       —      —  ⏭ NOT_EVALUATED
+Supplements        —       —      —  ⏭ NOT_EVALUATED
+Recovery           —       —      —  ⏭ NOT_EVALUATED
+Culture            —       —      —  ⏭ NOT_EVALUATED
+Social             —       —      —  ⏭ NOT_EVALUATED
+Nightlife          —       —      —  ⏭ NOT_EVALUATED
 
 ────────────────────────────────────────────────────────────
   RUN: TRUNCATED (--fail-fast) — PARTIAL RESULT, NOT A FULL EVALUATION
@@ -418,7 +492,10 @@ Nightlife          —       —  ⏭ NOT_EVALUATED
 
 In the JSON, every expected unit is still a key in `sections`/`slots` — a unit the run never
 reached carries `"status": "NOT_EVALUATED"` and **null** scores (never `0`, never `100` — a
-NOT_EVALUATED unit must be impossible to mistake for either a pass or a fail). `run.truncated` is
+NOT_EVALUATED unit must be impossible to mistake for either a pass or a fail). That includes
+`synth_score`/`synth_passed`: the one universal check is not allowed to be the one field that reads
+clean on copy nobody read, and the fail-fast stop genuinely stops the SynthLint call too — the
+skipped units' text is never handed to it. `run.truncated` is
 `true`, `run.complete` is `false`, `run.truncated_at` names the unit that tripped the stop, and
 `run.not_evaluated` lists every unit the run never reached. **A truncated run is a PARTIAL result
 and can never report `overall: "PASS"`** — even if every unit the run did reach happened to pass
@@ -486,30 +563,39 @@ For Workout Series copy in CI:
 
 ```
 timbr_eval/
-├── orchestrator.py               # Main harness — wires ProhibLint/VoiceLint/CharLint together
+├── orchestrator.py                # Main harness — wires all four linters together
 ├── run_eval.sh                    # Shell convenience wrapper (forwards every flag untouched)
 ├── sample_issue.json              # Sample magazine issue; fails today on word count + 2 AI-blocklist hits
-├── test_orchestrator.py           # pytest suite for orchestrator.py (94 tests)
+├── test_orchestrator.py           # pytest suite for orchestrator.py (147 tests)
+├── test_positive_control.py       # Guards the magazine positive-control fixture (43 tests)
 ├── README.md                      # This file
 ├── __init__.py
+├── fixtures/
+│   └── magazine_pass.json         # The ONLY magazine submission known to return PASS — the line's positive control
 ├── results/                       # Tracked in git; scorecard JSON lands here by default
 │   └── VOL_04_scorecard.json
 ├── prohiblint/
 │   ├── __init__.py
 │   ├── prohiblint.py              # Prohibited-language + structure linter, both rulesets
-│   ├── test_prohiblint.py         # 382 tests
+│   ├── test_prohiblint.py         # 443 tests
 │   └── README.md
 ├── voicelint/
 │   ├── __init__.py
 │   ├── voicelint.py               # Voice-register linter (run(), score_*, voice_affinity(), voice_affinity_density())
 │   ├── voice_config.py            # SECTION_VOICE_MAP, regex patterns, scoring constants
-│   ├── test_voicelint.py          # 387 tests
+│   ├── test_voicelint.py          # 419 tests
 │   └── README.md
-└── charlint/
+├── charlint/
+│   ├── __init__.py
+│   ├── charlint.py                # Char-count lock gate (load_locks, run_charlint, chars_to_target)
+│   ├── locks_seattle_series.json  # The real Seattle Series locks — 7 DYNAMIC + 2 PERMANENT slots
+│   ├── test_charlint.py           # 230 tests
+│   └── README.md
+└── synthlint/
     ├── __init__.py
-    ├── charlint.py                 # Char-count lock gate (load_locks, run_charlint, chars_to_target)
-    ├── locks_seattle_series.json  # The real Seattle Series locks — 7 DYNAMIC + 2 PERMANENT slots
-    ├── test_charlint.py            # 143 tests
+    ├── synthlint.py               # AI-fingerprint linter (run_synthlint) — BOTH rulesets, no ruleset switch
+    ├── synth_config.py            # Vocabulary lists, thresholds, and every derivation note behind them
+    ├── test_synthlint.py          # 312 tests
     └── README.md
 ```
 
@@ -517,34 +603,38 @@ timbr_eval/
 
 ## Running Tests
 
-Four suites, 1006 tests total as of this writing. From the repo root, all four at once:
+Six suites, 1594 tests total as of this writing. From the repo root, all six at once:
 
 ```bash
 python3 -m pytest -q
 ```
 
 ```
-1006 passed in 6.21s
+1594 passed in 15.15s
 ```
 
 Or individually (each suite's own README has the exact invocation it expects):
 
 ```bash
-python3 -m pytest prohiblint/test_prohiblint.py -q      # 382 passed
-cd voicelint && python3 -m pytest test_voicelint.py -q   # 387 passed
-cd charlint  && python3 -m pytest test_charlint.py -q    # 143 passed
-python3 -m pytest test_orchestrator.py -q                # 94 passed  (from the repo root)
+python3 -m pytest prohiblint/test_prohiblint.py -q      # 443 passed
+cd voicelint && python3 -m pytest test_voicelint.py -q   # 419 passed
+cd charlint  && python3 -m pytest test_charlint.py -q    # 230 passed
+cd synthlint && python3 -m pytest test_synthlint.py -q   # 312 passed
+python3 -m pytest test_orchestrator.py -q                # 147 passed  (from the repo root)
+python3 -m pytest test_positive_control.py -q            # 43 passed   (from the repo root)
 ```
 
 `test_orchestrator.py` guards, among other things, that no test run ever writes into the tracked
-`results/` directory (`_guard_real_results_dir` fails the test suite if anything does).
+`results/` directory (`_guard_real_results_dir` fails the test suite if anything does), and it
+asserts the four-linter conjunction **once per ruleset** rather than once and generalised — the two
+evaluation paths are separate functions, and "the wiring works for one ruleset" does not imply it
+works for both.
 
 ---
 
 ## Dependencies
 
-stdlib only across all three linters and the orchestrator: `re` (prohiblint, voicelint),
-`typing.NamedTuple` (voicelint), `json`/`pathlib`/`unicodedata` (charlint), and
-`argparse`/`json`/`re`/`pathlib`/`datetime` (orchestrator). Nothing in this repo imports
-`collections`. `pytest` is required to run any of the four test suites, not to run the harness
-itself.
+stdlib only across all four linters and the orchestrator: `re` (prohiblint, voicelint, synthlint),
+`typing.NamedTuple` (voicelint), `json`/`pathlib`/`unicodedata` (charlint), `statistics`
+(synthlint), and `argparse`/`json`/`re`/`pathlib`/`datetime` (orchestrator). Nothing in this repo
+imports `collections`. `pytest` is required to run the test suites, not to run the harness itself.

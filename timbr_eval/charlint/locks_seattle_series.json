@@ -1,6 +1,6 @@
 {
-  "_comment": "Char-count locks for the TIMBR Workout Series (Seattle Series) template. PRINCIPLES.txt Section 3: 'once a page is owner-approved, every dynamic text slot is locked to the EXACT character count of the approved baseline (including spaces)'. Baseline text captured live from Canva design DAHQoZJm12w on 2026-07-27.",
-  "_observed_note": "EVERY slot records `observed`: the live character count measured from the captured baseline string, not an assumption. Uniform on purpose — a slot with no `observed` cannot be told apart from one that was measured and happened to agree, and 'assumed, never measured' is exactly the state a lock file must not be able to hide. `drift` = observed - principles_lock is recorded alongside it, so a zero drift is an explicit finding rather than a silence. Only cover_body drifts (-6); see its _drift_note.",
+  "_comment": "Char-count locks for the TIMBR Workout Series (Seattle Series) template. PRINCIPLES.txt Section 3: 'once a page is owner-approved, every dynamic text slot is locked to the EXACT character count of the approved baseline (including spaces)'. Baseline text captured live from Canva design DAHQoZJm12w on 2026-07-27. Six of the seven slots are POINT locks enforced at tolerance 0, exactly as Section 3 describes. cover_body is not: the master workbook states it as a RANGE, so it carries `lock_range` instead — see its _range_note.",
+  "_observed_note": "EVERY slot records `observed`: the live character count measured from the captured baseline string, not an assumption. Uniform on purpose — a slot with no `observed` cannot be told apart from one that was measured and happened to agree, and 'assumed, never measured' is exactly the state a lock file must not be able to hide. On the six POINT-locked slots `drift` = observed - principles_lock is recorded alongside it, so a zero drift is an explicit finding rather than a silence; all six read 0. cover_body carries no `drift` and can carry none: it is range-locked (350-358 incl.), and a band has no single point to drift from. No slot in this file currently drifts.",
   "ruleset": "workout_series",
   "design_id": "DAHQoZJm12w",
   "design_title": "Testing Seattle Series",
@@ -11,10 +11,14 @@
       "page": 1,
       "page_title": "Cover",
       "type": "DYNAMIC",
+      "lock_range": {
+        "min": 350,
+        "max": 358,
+        "source": "Seattle Series Magazine workbook (the master sheet PRINCIPLES.txt Sec. 5 names as the single source of truth, overriding both this repo and PRINCIPLES.txt itself) — Magazine Layout tab, row PAGE NAME \"Cover\", SLOT \"Body\", TYPE \"DYNAMIC · COUNT-LOCKED\", CHAR COUNT \"~353 (lock 350–358 incl. spaces)\" — quoted verbatim. Both edges inclusive."
+      },
       "principles_lock": 357,
       "observed": 351,
-      "drift": -6,
-      "_drift_note": "DRIFT FLAG: PRINCIPLES.txt Section 3 records the series cover-body lock as 357. This template measures 351. Either the template drifted from the Vol 01 approved baseline or PRINCIPLES records a different baseline. CharLint enforces `observed`; the drift is reported, not silently absorbed. Owner decides which number is canonical.",
+      "_range_note": "NO DRIFT HERE, AND NOTHING OUTSTANDING FOR THE OWNER. This slot used to record `drift: -6` against a `principles_lock` of 357 and re-issued an \"owner decides which number is canonical\" warning on every run. Both were artifacts of comparing a point to a band. The workbook locks this body to 350-358 inclusive; the live template's 351 and PRINCIPLES.txt's 357 are both inside that window, so neither is a drift and neither has to win. `principles_lock` stays as the record of what PRINCIPLES.txt transcribed (a band flattened to one number), NOT as a second rule: an exact count inside the band is documentation, an exact count outside it is a corrupt file. `drift` on a banded slot is also a corrupt file — a band has no point to drift from. The `baseline` below is untouched: 351 characters, captured live from Canva DAHQoZJm12w, mid-band and still the reference text.",
       "element_id": "PBqNtJLXz8qMH6l3-LBZGhkSHCtQF8q74-LBWJcWlGfV6mZKlV",
       "baseline": "Seattle wears its fitness in the open — runners on the waterfront, climbers on the bluffs, coffee in every hand. Vol 1 carries chest and tricep through Cascade: fifty minutes of pressing, a café worth the walk, the right rooms for the night off. It reads less like a workout and more like a city worth exploring. Train like a local — wherever you are."
     },

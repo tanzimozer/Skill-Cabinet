@@ -15,8 +15,10 @@ import charlint as charlint_module
 from charlint import (
     CANONICAL_FORM,
     CorruptLocksError,
+    RangeLockedSlotError,
     UnknownSlotError,
     DEFAULT_TOLERANCE,
+    LOCK_RANGE_KEY,
     FAILURE_NOT_FILLED,
     FAILURE_OVERFLOW,
     FAILURE_PERMANENT_MUTATION,
@@ -27,12 +29,16 @@ from charlint import (
     drift_warnings,
     enforced_lock,
     format_report,
+    is_range_locked,
     load_locks,
+    lock_band,
+    nearest_legal,
     permanent_slot_names,
     required_slot_names,
     run_charlint,
     slot_names,
     target_for,
+    target_range_for,
     validate_locks,
 )
 
@@ -44,6 +50,26 @@ ALL_SLOTS = [
     "cover_body", "city_intro", "anchor_venue", "anchor_cafe",
     "counter_venue", "counter_cafe", "night_page",
 ]
+
+#: The one slot the master workbook states as a BAND rather than a point.
+RANGE_LOCKED_SLOTS = ["cover_body"]
+
+#: The other six, which are genuine point locks at tolerance 0 and must stay
+#: that way — a range that leaked onto them would be a gate looser than its
+#: rulebook, the mirror of the defect ranges were added to fix.
+POINT_LOCKED_SLOTS = [s for s in ALL_SLOTS if s not in RANGE_LOCKED_SLOTS]
+
+#: cover_body's band, from the Magazine Layout tab of the master workbook:
+#: CHAR COUNT "~353 (lock 350-358 incl. spaces)". Written out here rather than
+#: read from the locks file, so a test can catch the file changing.
+COVER_BODY_BAND = (350, 358)
+
+
+def sized(text, target):
+    """`text` grown or trimmed to exactly `target` characters."""
+    if target <= len(text):
+        return text[:target]
+    return text + "x" * (target - len(text))
 
 
 @pytest.fixture
@@ -298,13 +324,16 @@ class TestIdentity:
         assert sorted(result["slots"]) == sorted(ALL_SLOTS)
 
     def test_enforced_locks_match_the_captured_numbers(self, locks):
-        # cover_body enforces the OBSERVED 351, not the documented 357.
+        # Six point locks enforce the OBSERVED count. cover_body is the one
+        # range lock: the workbook states it as a band, so it has a window and
+        # deliberately no single target (see TestRangeLocks).
         expected = {
-            "cover_body": 351, "city_intro": 628, "anchor_venue": 667,
-            "anchor_cafe": 694, "counter_venue": 602, "counter_cafe": 414,
-            "night_page": 616,
+            "city_intro": 628, "anchor_venue": 667, "anchor_cafe": 694,
+            "counter_venue": 602, "counter_cafe": 414, "night_page": 616,
         }
-        assert {s: target_for(s, locks) for s in ALL_SLOTS} == expected
+        assert {s: target_for(s, locks) for s in POINT_LOCKED_SLOTS} == expected
+        assert {s: target_range_for(s, locks) for s in ALL_SLOTS} == dict(
+            {s: (n, n) for s, n in expected.items()}, cover_body=(350, 358))
 
 
 # ---------------------------------------------------------------------------
@@ -405,8 +434,11 @@ class TestOverflowUnderfill:
         assert res["score"] == 90
 
     def test_default_tolerance_is_exact(self, locks, baselines):
+        # On a POINT-locked slot, which is what tolerance governs. (cover_body
+        # is range-locked and one extra space lands inside its band — that is
+        # the workbook's rule, not a tolerance; see TestRangeLocks.)
         assert locks["tolerance"] == 0
-        assert check_slot("cover_body", baselines["cover_body"] + " ", locks)["passed"] is False
+        assert check_slot("city_intro", baselines["city_intro"] + " ", locks)["passed"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -431,15 +463,20 @@ class TestUnicode:
         hyphens (3 bytes): the BYTE length is unchanged, so a byte-counting
         implementation sees a perfect match. The CHARACTER length is +2 and the
         layout really does overflow. CharLint must fail it.
-        """
-        candidate = baselines["cover_body"].replace("—", "---", 1)
-        assert len(candidate.encode("utf-8")) == len(baselines["cover_body"].encode("utf-8"))
-        assert len(candidate) == 353
 
-        res = check_slot("cover_body", candidate, locks)
+        Run on city_intro, a point lock, so the +2 is a miss on its own terms.
+        (The same substitution on the range-locked cover_body lands at 353,
+        inside 350-358, and is legal — which is the workbook's rule, not a
+        byte-vs-character question. TestRangeLocks covers that separately.)
+        """
+        candidate = baselines["city_intro"].replace("—", "---", 1)
+        assert len(candidate.encode("utf-8")) == len(baselines["city_intro"].encode("utf-8"))
+        assert len(candidate) == 630
+
+        res = check_slot("city_intro", candidate, locks)
         assert res["passed"] is False
         assert res["failure_mode"] == FAILURE_OVERFLOW
-        assert res["actual"] == 353
+        assert res["actual"] == 630
         assert res["delta"] == 2
 
     def test_ascii_substitution_of_accented_char_shifts_bytes_not_chars(
@@ -494,15 +531,22 @@ class TestUnicode:
     def test_a_real_overflow_in_nfd_text_still_fails_with_an_actionable_count(
         self, locks, baselines
     ):
-        # The fix must not swallow real misses: NFD copy that is genuinely two
-        # characters long still fails, and the number it reports is a number
-        # the writer can act on by deleting two visible characters.
-        nfd = unicodedata.normalize("NFD", baselines["cover_body"]) + "xx"
+        # The fix must not swallow real misses: NFD copy that is genuinely too
+        # long still fails, and the number it reports is a number the writer
+        # can act on by deleting that many visible characters.
+        #
+        # cover_body is the only baseline carrying an é, so the NFD cases live
+        # here — and it is range-locked, so "genuinely too long" means past the
+        # 358 ceiling, not past 351. 12 extra characters compose to 363, and
+        # the 5 it asks for are 5 real characters on the page.
+        nfd = unicodedata.normalize("NFD", baselines["cover_body"]) + "x" * 12
+        assert len(nfd) == 364          # 352 code points decomposed, + 12
         res = check_slot("cover_body", nfd, locks)
+        assert res["actual"] == 363     # ... 363 characters once composed
         assert res["passed"] is False
         assert res["failure_mode"] == FAILURE_OVERFLOW
-        assert res["delta"] == 2
-        assert "Remove 2 character(s)" in res["violations"][0]
+        assert res["delta"] == 5
+        assert "Remove 5 character(s)" in res["violations"][0]
 
     def test_composition_is_nfc_not_nfkc(self, locks, baselines):
         """
@@ -959,42 +1003,81 @@ class TestMissingSlot:
 # Drift — reported separately from failure, on every run
 # ---------------------------------------------------------------------------
 
+def drifting_locks(baseline="Hello world", documented=13):
+    """A point-locked file with a GENUINE drift: documented != measured."""
+    return {
+        "ruleset": "test",
+        "tolerance": 0,
+        "slots": {
+            "body": {
+                "type": "DYNAMIC",
+                "principles_lock": documented,
+                "observed": len(baseline),
+                "drift": len(baseline) - documented,
+                "baseline": baseline,
+            },
+        },
+    }
+
+
 class TestDrift:
-    def test_drift_warning_appears_on_a_fully_passing_run(self, locks, identity):
-        result = run_charlint(identity, locks)
+    """
+    The drift mechanism is intact. What changed is that the shipped Seattle
+    file no longer has an instance of it — cover_body's "-6" was a point being
+    compared to a band, not a template that moved — so drift is pinned here on
+    a file that genuinely drifts.
+    """
+
+    def test_drift_warning_appears_on_a_fully_passing_run(self, tmp_path):
+        path = write_locks(tmp_path, drifting_locks())
+        result = run_charlint({"body": "Hello world"}, path)
         assert result["summary"]["all_passed"] is True     # nothing failed
         assert len(result["warnings"]) == 1                # and yet
-        assert "cover_body" in result["warnings"][0]
+        assert "body" in result["warnings"][0]
 
-    def test_warning_names_both_numbers_the_drift_and_the_enforced_one(self, locks):
-        warning = drift_warnings(locks)[0]
+    def test_warning_names_both_numbers_the_drift_and_the_enforced_one(self, tmp_path):
+        path = write_locks(tmp_path, drifting_locks())
+        warning = drift_warnings(path)[0]
         assert "DRIFT" in warning
-        assert "357" in warning        # what PRINCIPLES.txt documents
-        assert "351" in warning        # what the template measures
-        assert "-6" in warning         # the signed drift
-        assert "enforcing 351" in warning
+        assert "13" in warning         # what PRINCIPLES.txt documents
+        assert "11" in warning         # what the template measures
+        assert "-2" in warning         # the signed drift
+        assert "enforcing 11" in warning
         assert "owner decides" in warning
 
-    def test_drift_never_fails_the_run(self, locks, identity):
-        result = run_charlint(identity, locks)
-        assert result["slots"]["cover_body"]["passed"] is True
-        assert result["slots"]["cover_body"]["score"] == 100
+    def test_drift_never_fails_the_run(self, tmp_path):
+        path = write_locks(tmp_path, drifting_locks())
+        result = run_charlint({"body": "Hello world"}, path)
+        assert result["slots"]["body"]["passed"] is True
+        assert result["slots"]["body"]["score"] == 100
 
-    def test_drift_is_reported_even_when_the_slot_is_not_filled(self, locks):
-        result = run_charlint({}, locks)
-        assert any("cover_body" in w for w in result["warnings"])
+    def test_drift_is_reported_even_when_the_slot_is_not_filled(self, tmp_path):
+        path = write_locks(tmp_path, drifting_locks())
+        result = run_charlint({}, path)
+        assert result["slots"]["body"]["passed"] is False   # not filled
+        assert any("DRIFT" in w and "body" in w for w in result["warnings"])
 
     def test_zero_drift_slot_produces_no_warning(self, locks):
         # night_page records observed == principles_lock == 616.
         assert locks["slots"]["night_page"]["drift"] == 0
         assert not any("night_page" in w for w in drift_warnings(locks))
 
-    def test_enforced_lock_is_observed_not_the_documented_number(self, locks, baselines):
-        assert enforced_lock(locks["slots"]["cover_body"]) == 351
-        # Copy written to the DOCUMENTED 357 fails against the live 351.
-        res = check_slot("cover_body", baselines["cover_body"] + "x" * 6, locks)
-        assert res["actual"] == 357
-        assert res["expected"] == 351
+    def test_the_shipped_file_no_longer_drifts_at_all(self, locks, identity):
+        # The finding, pinned. Every point lock reads drift 0, cover_body is
+        # banded and carries no drift, and a fully passing run says nothing —
+        # no "owner decides" nag left standing after the owner's own workbook
+        # decided it.
+        assert drift_warnings(locks) == []
+        assert run_charlint(identity, locks)["warnings"] == []
+
+    def test_enforced_lock_is_observed_not_the_documented_number(self, tmp_path):
+        data = drifting_locks()
+        loaded = load_locks(write_locks(tmp_path, data))
+        assert enforced_lock(loaded["slots"]["body"]) == 11
+        # Copy written to the DOCUMENTED 13 fails against the live 11.
+        res = check_slot("body", "Hello world!!", loaded)
+        assert res["actual"] == 13
+        assert res["expected"] == 11
         assert res["passed"] is False
         assert res["failure_mode"] == FAILURE_OVERFLOW
 
@@ -1024,7 +1107,13 @@ class TestObservedIsRecordedEverywhere:
     def test_every_slot_records_observed_and_drift(self, locks):
         for name, spec in locks["slots"].items():
             assert "observed" in spec, f"{name} has no observed count"
-            assert "drift" in spec, f"{name} has no drift"
+            if name in RANGE_LOCKED_SLOTS:
+                # A band has no point to drift from, and saying so is not the
+                # same silence the `observed` rule exists to prevent: the
+                # measurement is still recorded, only the drift is undefined.
+                assert "drift" not in spec, f"{name} is banded and cannot drift"
+            else:
+                assert "drift" in spec, f"{name} has no drift"
 
     @pytest.mark.parametrize("slot", ALL_SLOTS)
     def test_every_recorded_count_matches_the_baseline_it_describes(self, slot, locks):
@@ -1032,18 +1121,399 @@ class TestObservedIsRecordedEverywhere:
         # file's own string, never against a number typed into this test.
         spec = locks["slots"][slot]
         assert spec["observed"] == len(spec["baseline"])
-        assert spec["drift"] == spec["observed"] - spec["principles_lock"]
+        if slot not in RANGE_LOCKED_SLOTS:
+            assert spec["drift"] == spec["observed"] - spec["principles_lock"]
 
-    def test_only_cover_body_actually_drifts(self, locks):
-        drifting = {n: s["drift"] for n, s in locks["slots"].items() if s["drift"]}
-        assert drifting == {"cover_body": -6}
+    def test_nothing_in_the_shipped_file_drifts(self, locks):
+        drifting = {n: s["drift"] for n, s in locks["slots"].items()
+                    if s.get("drift")}
+        assert drifting == {}
 
     def test_recording_observed_did_not_move_any_enforced_lock(self, locks, baselines):
         # The whole point is that the numbers were already true. Recording them
         # must be a no-op for every gate: identity still holds slot by slot.
         for slot in ALL_SLOTS:
-            assert target_for(slot, locks) == len(baselines[slot])
+            low, high = target_range_for(slot, locks)
+            assert low <= len(baselines[slot]) <= high
             assert check_slot(slot, baselines[slot], locks)["passed"] is True
+        for slot in POINT_LOCKED_SLOTS:
+            assert target_for(slot, locks) == len(baselines[slot])
+
+
+# ---------------------------------------------------------------------------
+# RANGE LOCKS — a slot whose rule is a band, not a point
+#
+# The master workbook ("Seattle Series Magazine", the sheet PRINCIPLES.txt
+# Sec. 5 names as the single source of truth) states the cover body as
+# CHAR COUNT "~353 (lock 350-358 incl. spaces)". Enforcing a point there made
+# the gate stricter than its own rulebook: a legal 355-character body was
+# failed and told to delete 4 characters it was entitled to keep.
+# ---------------------------------------------------------------------------
+
+def banded_locks(low=350, high=358, baseline=None, **slot_overrides):
+    """A tiny locks file whose single slot is range-locked."""
+    baseline = "b" * low if baseline is None else baseline
+    slot = {
+        "type": "DYNAMIC",
+        LOCK_RANGE_KEY: {"min": low, "max": high, "source": "test workbook row"},
+        "baseline": baseline,
+    }
+    slot.update(slot_overrides)
+    return {"ruleset": "test", "tolerance": 0, "slots": {"body": slot}}
+
+
+class TestRangeLockEdges:
+    """Both edges legal, one character past either edge is not."""
+
+    @pytest.mark.parametrize("count", [350, 358])
+    def test_both_edges_are_inclusive(self, count, locks, baselines):
+        res = check_slot("cover_body", sized(baselines["cover_body"], count), locks)
+        assert res["passed"] is True, res["violations"]
+        assert res["delta"] == 0
+        assert res["violations"] == []
+        assert res["failure_mode"] is None
+        assert res["score"] == 100
+
+    @pytest.mark.parametrize("count", [350, 351, 352, 355, 357, 358])
+    def test_every_count_in_the_window_passes(self, count, locks, baselines):
+        # Including 351 (the live template) and 357 (what PRINCIPLES.txt
+        # transcribed): the two numbers the old "-6 drift" asked the owner to
+        # choose between are both simply legal.
+        assert check_slot(
+            "cover_body", sized(baselines["cover_body"], count), locks)["passed"] is True
+
+    def test_one_character_under_the_floor_fails(self, locks, baselines):
+        res = check_slot("cover_body", sized(baselines["cover_body"], 349), locks)
+        assert res["passed"] is False
+        assert res["failure_mode"] == FAILURE_UNDERFILL
+        assert res["actual"] == 349
+        assert res["delta"] == -1
+        assert res["expected"] == 350
+
+    def test_one_character_over_the_ceiling_fails(self, locks, baselines):
+        res = check_slot("cover_body", sized(baselines["cover_body"], 359), locks)
+        assert res["passed"] is False
+        assert res["failure_mode"] == FAILURE_OVERFLOW
+        assert res["actual"] == 359
+        assert res["delta"] == 1
+        assert res["expected"] == 358
+
+    def test_the_edges_are_not_off_by_one_in_either_direction(self, locks, baselines):
+        # 349/350 and 358/359 pinned together, so an edge cannot be moved
+        # inward or outward without a test dying.
+        verdicts = {n: check_slot(
+            "cover_body", sized(baselines["cover_body"], n), locks)["passed"]
+            for n in (349, 350, 358, 359)}
+        assert verdicts == {349: False, 350: True, 358: True, 359: False}
+
+
+class TestRangeLockRemediation:
+    """Out of range points at the NEAREST legal edge, never at a midpoint."""
+
+    def test_over_the_ceiling_is_told_to_reach_the_ceiling(self, locks, baselines):
+        res = check_slot("cover_body", sized(baselines["cover_body"], 362), locks)
+        violation = res["violations"][0]
+        assert "OVERFLOW" in violation
+        assert "350–358" in violation           # the whole rule, not one edge
+        assert "Remove 4 character(s) to land on 358" in violation
+        assert "nearest legal count" in violation
+        # The midpoint (354) is 8 characters away and is NOT what is asked for.
+        assert "354" not in violation
+        assert "Remove 8" not in violation
+
+    def test_under_the_floor_is_told_to_reach_the_floor(self, locks, baselines):
+        res = check_slot("cover_body", sized(baselines["cover_body"], 344), locks)
+        violation = res["violations"][0]
+        assert "UNDERFILL" in violation
+        assert "350–358" in violation
+        assert "Add 6 character(s) to land on 350" in violation
+        assert "nearest legal count" in violation
+        assert "354" not in violation
+        assert "Add 10" not in violation
+
+    def test_the_number_asked_for_actually_lands(self, locks, baselines):
+        # Both directions, acted on literally: the remediation is a number a
+        # writer can execute, and executing it passes.
+        for count in (344, 362):
+            draft = sized(baselines["cover_body"], count)
+            needed = chars_to_target("cover_body", draft, locks)["chars_needed"]
+            fixed = draft + "y" * needed if needed > 0 else draft[:len(draft) + needed]
+            assert check_slot("cover_body", fixed, locks)["passed"] is True
+
+    def test_an_in_range_candidate_is_not_nagged(self, locks, baselines):
+        # The defect in one test: a legal 355 must produce no violation, no
+        # failure and no "move to 353" advice.
+        res = check_slot("cover_body", sized(baselines["cover_body"], 355), locks)
+        assert res["passed"] is True
+        assert res["violations"] == []
+        assert res["delta"] == 0
+        assert res["score"] == 100
+        info = chars_to_target("cover_body", sized(baselines["cover_body"], 355), locks)
+        assert info["action"] == "none"
+        assert info["chars_needed"] == 0
+
+    def test_nearest_legal_is_the_clamp_not_the_midpoint(self):
+        assert nearest_legal(344, (350, 358)) == 350
+        assert nearest_legal(362, (350, 358)) == 358
+        assert nearest_legal(355, (350, 358)) == 355     # already legal
+        assert nearest_legal(7, (7, 7)) == 7             # a point lock
+
+
+class TestRangeLockFileRules:
+    """What a locks file may and may not say about a band."""
+
+    def test_band_plus_conflicting_exact_count_raises(self, tmp_path):
+        for field in ("principles_lock", "observed"):
+            data = banded_locks(**{field: 400})
+            with pytest.raises(CorruptLocksError) as exc:
+                load_locks(write_locks(tmp_path, data, name=f"{field}.json"))
+            assert "350–358" in str(exc.value)
+            assert f"{field}=400" in str(exc.value)
+            assert "no precedence rule" in str(exc.value)
+
+    def test_a_conflicting_count_is_caught_below_the_band_too(self, tmp_path):
+        data = banded_locks(principles_lock=300)
+        with pytest.raises(CorruptLocksError):
+            load_locks(write_locks(tmp_path, data))
+
+    def test_an_exact_count_inside_the_band_is_documentation_not_a_conflict(self, tmp_path):
+        # This is what the real cover_body does: 351 measured, 357 documented,
+        # both legal, neither enforced as a point.
+        data = banded_locks(baseline="b" * 351, observed=351, principles_lock=357)
+        loaded = load_locks(write_locks(tmp_path, data))
+        assert lock_band(loaded["slots"]["body"]) == (350, 358)
+        assert drift_warnings(loaded) == []
+
+    @pytest.mark.parametrize("count", [350, 358])
+    def test_an_exact_count_sitting_on_an_edge_is_not_a_conflict(self, count, tmp_path):
+        # The band is inclusive for the FILE's own numbers too, not just for
+        # candidates. A template that measures exactly the floor (or exactly
+        # the ceiling) is legal data, not a second rule — rejecting it would
+        # make the file format stricter than the band it records.
+        data = banded_locks(baseline="b" * count, observed=count)
+        loaded = load_locks(write_locks(tmp_path, data))
+        assert lock_band(loaded["slots"]["body"]) == (350, 358)
+        assert check_slot("body", "b" * count, loaded)["passed"] is True
+
+    def test_drift_on_a_banded_slot_raises(self, tmp_path):
+        data = banded_locks(baseline="b" * 351, observed=351,
+                            principles_lock=357, drift=-6)
+        with pytest.raises(CorruptLocksError) as exc:
+            load_locks(write_locks(tmp_path, data))
+        assert "drift" in str(exc.value)
+        assert "no single point to drift from" in str(exc.value)
+
+    def test_a_baseline_outside_its_own_band_raises(self, tmp_path):
+        data = banded_locks(baseline="b" * 349)
+        with pytest.raises(CorruptLocksError) as exc:
+            load_locks(write_locks(tmp_path, data))
+        assert "349" in str(exc.value)
+
+    def test_an_empty_band_raises(self, tmp_path):
+        data = banded_locks(low=358, high=350, baseline="b" * 350)
+        with pytest.raises(CorruptLocksError) as exc:
+            load_locks(write_locks(tmp_path, data))
+        assert "empty" in str(exc.value)
+
+    @pytest.mark.parametrize("raw", [
+        {"min": 350},                                  # no ceiling
+        {"max": 358},                                  # no floor
+        {"min": 350, "max": "358"},                    # a string edge
+        {"min": 350, "max": 358.0},                    # a float edge
+        {"min": True, "max": 358},                     # a bool edge
+        {"min": -1, "max": 358},                       # a negative edge
+        {"min": 350, "max": 358, "minimum": 350},      # a misspelled key
+        {"min": 350, "max": 358, "source": ""},        # an empty provenance
+        [350, 358],                                    # positional, not named
+        350,                                           # not an object at all
+    ])
+    def test_a_malformed_band_raises(self, raw, tmp_path):
+        data = banded_locks()
+        data["slots"]["body"][LOCK_RANGE_KEY] = raw
+        with pytest.raises(CorruptLocksError):
+            load_locks(write_locks(tmp_path, data))
+
+    def test_a_band_on_a_permanent_slot_raises(self, tmp_path):
+        data = minimal_locks()
+        data["permanent_slots"]["brand"][LOCK_RANGE_KEY] = {"min": 1, "max": 99}
+        with pytest.raises(CorruptLocksError) as exc:
+            load_locks(write_locks(tmp_path, data))
+        assert "exact strings" in str(exc.value)
+
+    def test_a_band_alone_is_a_complete_lock(self, tmp_path):
+        # No principles_lock, no observed: the band is the rule.
+        data = banded_locks()
+        assert "principles_lock" not in data["slots"]["body"]
+        loaded = load_locks(write_locks(tmp_path, data))
+        assert target_range_for("body", loaded) == (350, 358)
+
+    def test_a_slot_with_no_rule_at_all_still_raises(self, tmp_path):
+        data = banded_locks()
+        del data["slots"]["body"][LOCK_RANGE_KEY]
+        with pytest.raises(CorruptLocksError):
+            load_locks(write_locks(tmp_path, data))
+
+    def test_a_degenerate_band_is_legal_and_still_reads_as_a_band(self, tmp_path):
+        data = banded_locks(low=5, high=5, baseline="abcde")
+        loaded = load_locks(write_locks(tmp_path, data))
+        assert is_range_locked(loaded["slots"]["body"]) is True
+        assert check_slot("body", "abcde", loaded)["passed"] is True
+        assert check_slot("body", "abcdef", loaded)["passed"] is False
+
+    def test_the_file_level_tolerance_does_not_widen_a_band(self, tmp_path):
+        # A band states its own edges. Widening them by the file's tolerance
+        # would enforce a window the workbook never wrote.
+        data = banded_locks()
+        data["tolerance"] = 5
+        path = write_locks(tmp_path, data)
+        assert check_slot("body", "b" * 358, path)["passed"] is True
+        assert check_slot("body", "b" * 359, path)["passed"] is False
+        info = chars_to_target("body", "b" * 359, path)
+        assert info["tolerance"] == 0
+        assert info["action"] == "remove"
+
+    def test_tolerance_still_applies_to_point_locks_in_the_same_file(self, tmp_path):
+        data = banded_locks()
+        data["tolerance"] = 2
+        data["slots"]["point"] = {"type": "DYNAMIC", "principles_lock": 5,
+                                  "baseline": "abcde"}
+        path = write_locks(tmp_path, data)
+        assert check_slot("point", "abcdefg", path)["passed"] is True    # +2
+        assert check_slot("point", "abcdefgh", path)["passed"] is False  # +3
+
+
+class TestRangeLockAccessors:
+    """A band must never be handed back as if it were one number."""
+
+    def test_lock_band_covers_both_kinds(self, locks):
+        assert lock_band(locks["slots"]["cover_body"]) == COVER_BODY_BAND
+        assert lock_band(locks["slots"]["night_page"]) == (616, 616)
+
+    def test_is_range_locked_is_true_only_for_the_banded_slot(self, locks):
+        banded = [n for n, s in locks["slots"].items() if is_range_locked(s)]
+        assert banded == RANGE_LOCKED_SLOTS
+
+    def test_enforced_lock_refuses_to_flatten_a_band(self, locks):
+        with pytest.raises(RangeLockedSlotError):
+            enforced_lock(locks["slots"]["cover_body"])
+        assert enforced_lock(locks["slots"]["night_page"]) == 616
+
+    def test_target_for_refuses_to_flatten_a_band(self, locks):
+        with pytest.raises(RangeLockedSlotError) as exc:
+            target_for("cover_body", locks)
+        assert "target_range_for" in str(exc.value)
+
+    def test_range_errors_are_valueerror_and_charlint_errors(self, locks):
+        # The orchestrator catches charlint.CharLintError; `except ValueError`
+        # callers exist too. Both must still see this.
+        with pytest.raises(ValueError):
+            target_for("cover_body", locks)
+        with pytest.raises(charlint_module.CharLintError):
+            target_for("cover_body", locks)
+
+    def test_target_range_for_answers_for_every_slot(self, locks):
+        assert target_range_for("cover_body", locks) == COVER_BODY_BAND
+        assert target_range_for("night_page", locks) == (616, 616)
+        assert target_range_for("brand_subline", locks) == (20, 20)
+
+    def test_the_result_carries_the_band_not_just_an_edge(self, locks, baselines):
+        res = check_slot("cover_body", baselines["cover_body"], locks)
+        assert res["expected_range"] == [350, 358]
+        assert res["expected"] == 351            # the nearest legal count
+        assert check_slot(
+            "night_page", baselines["night_page"], locks)["expected_range"] is None
+
+    def test_the_band_survives_json(self, locks, identity):
+        result = run_charlint(identity, locks)
+        round_tripped = json.loads(json.dumps(result))
+        assert round_tripped["slots"]["cover_body"]["expected_range"] == [350, 358]
+
+    def test_an_unfilled_banded_slot_reports_the_whole_window(self, locks):
+        res = run_charlint({}, locks)["slots"]["cover_body"]
+        assert res["failure_mode"] == FAILURE_NOT_FILLED
+        assert "350–358" in res["violations"][0]
+        assert res["expected_range"] == [350, 358]
+
+
+class TestPointLocksAreUnaffected:
+    """
+    Ranges are opt-in per slot. The other six are genuine point locks and stay
+    tolerance-0 exact — a band leaking onto them would be the mirror defect:
+    a gate looser than its rulebook.
+    """
+
+    def test_the_shipped_file_bands_exactly_one_slot(self, locks):
+        assert [n for n, s in locks["slots"].items()
+                if LOCK_RANGE_KEY in s] == RANGE_LOCKED_SLOTS
+
+    @pytest.mark.parametrize("slot", POINT_LOCKED_SLOTS)
+    def test_one_character_either_side_still_fails_a_point_lock(
+        self, slot, locks, baselines
+    ):
+        over = check_slot(slot, baselines[slot] + "x", locks)
+        under = check_slot(slot, baselines[slot][:-1], locks)
+        assert over["passed"] is False and over["failure_mode"] == FAILURE_OVERFLOW
+        assert under["passed"] is False and under["failure_mode"] == FAILURE_UNDERFILL
+
+    @pytest.mark.parametrize("slot", POINT_LOCKED_SLOTS)
+    def test_a_point_lock_reports_no_band(self, slot, locks, baselines):
+        res = check_slot(slot, baselines[slot], locks)
+        assert res["expected_range"] is None
+        assert res["expected"] == len(baselines[slot])
+        assert lock_band(locks["slots"][slot]) == (res["expected"], res["expected"])
+
+    @pytest.mark.parametrize("slot", POINT_LOCKED_SLOTS)
+    def test_a_point_lock_still_says_lock_not_window(self, slot, locks, baselines):
+        violation = check_slot(slot, baselines[slot] + "x", locks)["violations"][0]
+        assert "enforced lock" in violation
+        assert "legal range" not in violation.lower()
+
+    def test_no_slot_silently_acquires_the_cover_bands_window(self, locks, baselines):
+        # The mutation "apply the band to every slot" is what this kills: a
+        # ±4 window on a point lock would pass all of these.
+        for slot in POINT_LOCKED_SLOTS:
+            for offset in (-4, -1, 1, 4):
+                candidate = sized(baselines[slot], len(baselines[slot]) + offset)
+                assert check_slot(slot, candidate, locks)["passed"] is False, (
+                    f"{slot} accepted {offset:+d}")
+
+
+class TestIdentityStillHolds:
+    """
+    The anchor. Every captured baseline is still legal against the file as it
+    now stands — seven count-locked slots and both permanent slots, in one run
+    and one by one. If a range change had moved any other lock, this dies.
+    """
+
+    def test_all_seven_baselines_and_both_permanent_slots_pass_together(
+        self, locks, baselines
+    ):
+        submission = dict(baselines)
+        for name in permanent_slot_names(locks):
+            submission[name] = locks["permanent_slots"][name]["baseline"]
+        result = run_charlint(submission, locks)
+        assert sorted(result["slots"]) == sorted(ALL_SLOTS + permanent_slot_names(locks))
+        assert result["summary"]["all_passed"] is True
+        assert result["summary"]["total_score"] == 100 * 9
+        assert result["warnings"] == []
+
+    @pytest.mark.parametrize("slot", ALL_SLOTS)
+    def test_each_baseline_is_inside_its_own_lock(self, slot, locks, baselines):
+        low, high = target_range_for(slot, locks)
+        assert low <= len(baselines[slot]) <= high
+        assert check_slot(slot, baselines[slot], locks)["delta"] == 0
+
+    def test_the_cover_baseline_is_the_captured_351_and_sits_mid_band(
+        self, locks, baselines
+    ):
+        # The reference text was not touched by the range change: still the
+        # 351-character string captured from Canva DAHQoZJm12w, still legal.
+        assert len(baselines["cover_body"]) == 351
+        assert baselines["cover_body"].startswith("Seattle wears its fitness in the open")
+        assert baselines["cover_body"].endswith("Train like a local — wherever you are.")
+        low, high = COVER_BODY_BAND
+        assert low < 351 < high
+        assert check_slot("cover_body", baselines["cover_body"], locks)["passed"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -1097,6 +1567,66 @@ class TestCharsToTarget:
         assert info["action"] == "none"
 
 
+class TestCharsToTargetOnABand:
+    """
+    The convergence loop has to be honest about what it is converging on.
+    PRINCIPLES.txt Sec. 3 describes landing "on the lock to the character";
+    for a banded slot there is no such character, there is a window, and
+    pretending otherwise is what sent writers to delete legal characters.
+    """
+
+    def test_in_range_says_window_not_target(self, locks, baselines):
+        info = chars_to_target("cover_body", sized(baselines["cover_body"], 355), locks)
+        assert info["action"] == "none"
+        assert info["chars_needed"] == 0
+        assert info["within_tolerance"] is True
+        assert info["expected_range"] == [350, 358]
+        assert "window" in info["message"]
+        assert "350–358" in info["message"]
+        assert "not a single target" in info["message"]
+        assert "on the lock" not in info["message"]
+
+    def test_both_edges_read_as_done(self, locks, baselines):
+        for count in (350, 358):
+            info = chars_to_target(
+                "cover_body", sized(baselines["cover_body"], count), locks)
+            assert info["action"] == "none", count
+            assert info["chars_needed"] == 0
+
+    def test_over_the_ceiling_points_at_the_ceiling(self, locks, baselines):
+        info = chars_to_target("cover_body", sized(baselines["cover_body"], 362), locks)
+        assert info["action"] == "remove"
+        assert info["chars_needed"] == -4          # to 358, not to 353 or 354
+        assert info["expected"] == 358
+        assert info["delta"] == 4
+        assert "Remove 4 character(s) to reach 358" in info["message"]
+        assert "nearest legal count" in info["message"]
+
+    def test_under_the_floor_points_at_the_floor(self, locks, baselines):
+        info = chars_to_target("cover_body", sized(baselines["cover_body"], 344), locks)
+        assert info["action"] == "add"
+        assert info["chars_needed"] == 6           # to 350, not to 353 or 354
+        assert info["expected"] == 350
+        assert info["delta"] == -6
+        assert "Add 6 character(s) to reach 350" in info["message"]
+
+    def test_a_point_lock_still_reads_as_a_point(self, locks, baselines):
+        info = chars_to_target("city_intro", baselines["city_intro"], locks)
+        assert info["expected_range"] is None
+        assert "on the lock" in info["message"]
+        assert "window" not in info["message"]
+
+    def test_the_loop_terminates_from_either_side(self, locks, baselines):
+        for count in (340, 370):
+            draft = sized(baselines["cover_body"], count)
+            info = chars_to_target("cover_body", draft, locks)
+            needed = info["chars_needed"]
+            fixed = draft + "y" * needed if needed > 0 else draft[:len(draft) + needed]
+            assert check_slot("cover_body", fixed, locks)["passed"] is True
+            # ... and the second pass asks for nothing, i.e. it converged.
+            assert chars_to_target("cover_body", fixed, locks)["chars_needed"] == 0
+
+
 # ---------------------------------------------------------------------------
 # Output shape — the orchestrator contract
 # ---------------------------------------------------------------------------
@@ -1128,7 +1658,7 @@ class TestOutputShape:
         json.dumps(run_charlint(identity, locks))
 
     def test_total_score_is_the_sum_of_slot_scores(self, locks, identity):
-        identity["cover_body"] += "x"
+        identity["city_intro"] += "x"
         result = run_charlint(identity, locks)
         assert result["summary"]["total_score"] == sum(
             r["score"] for r in result["slots"].values())
@@ -1140,4 +1670,14 @@ class TestOutputShape:
         report = format_report(run_charlint(identity, locks))
         assert "FAIL" in report
         assert "OVERFLOW" in report
-        assert "DRIFT" in report
+
+    def test_format_report_prints_a_band_as_a_band(self, locks, identity):
+        # Printing one edge in the Lock column is how a range gets read back as
+        # a point — the whole defect, re-created in the report.
+        report = format_report(run_charlint(identity, locks))
+        assert "350–358" in report
+        assert "628" in report          # ... and a point lock still prints one number
+
+    def test_format_report_still_renders_drift_when_there_is_drift(self, tmp_path):
+        path = write_locks(tmp_path, drifting_locks())
+        assert "DRIFT" in format_report(run_charlint({"body": "Hello world"}, path))

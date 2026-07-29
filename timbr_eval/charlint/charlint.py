@@ -79,7 +79,52 @@ Design notes that are load-bearing — read before changing anything:
     present, `principles_lock` otherwise — the live template is what the copy
     has to fit. Any disagreement between the two is reported as a WARNING on
     every single run and never silently absorbed: the owner decides which
-    number is canonical, the harness just keeps asking.
+    number is canonical, the harness just keeps asking. That warning is for
+    POINT locks only — see the next note for why a band has nothing to drift.
+
+  * POINT LOCKS AND RANGE LOCKS. Most slots are a point: one legal count, and
+    tolerance 0 means one legal count exactly. Some slots are not. The master
+    workbook ("Seattle Series Magazine", the Google Sheet PRINCIPLES.txt Sec. 5
+    names as the single source of truth, overriding both this repo and
+    PRINCIPLES.txt itself) states the cover body as a BAND:
+
+        Magazine Layout tab — PAGE NAME "Cover", SLOT "Body",
+        TYPE "DYNAMIC · COUNT-LOCKED",
+        CHAR COUNT "~353 (lock 350–358 incl. spaces)"
+
+    A slot declares a band with `lock_range`:
+
+        "lock_range": {"min": 350, "max": 358, "source": "<where it came from>"}
+
+    Both edges are INCLUSIVE, because the workbook wrote "incl.". The rules
+    around it, each of which exists because the alternative is a gate stricter
+    (or looser) than its own rulebook:
+
+      - EXACT IS STILL THE DEFAULT. No `lock_range`, no band. A slot with a
+        plain `observed`/`principles_lock` is a point lock at tolerance 0,
+        exactly as before, because most slots genuinely are point locks. A band
+        is opt-in per slot and is never inferred.
+      - A BAND PLUS A CONFLICTING EXACT COUNT IS A CORRUPT FILE, never a silent
+        precedence rule. An exact count INSIDE the band is documentation and is
+        allowed — cover_body records `observed` 351 (the live template) and
+        `principles_lock` 357 (what PRINCIPLES.txt transcribed), and both are
+        legal counts. An exact count OUTSIDE the band is two different rules in
+        one slot, and raises CorruptLocksError. Picking a winner quietly is how
+        a gate ends up enforcing a number nobody chose.
+      - `drift` IS FOR POINT LOCKS ONLY. Drift is `observed - principles_lock`
+        and it means "the live template no longer matches the documented lock".
+        A band has no point to drift from: 351 and 357 are both inside
+        350–358, neither is canonical, and there is nothing for an owner to
+        decide. Declaring `drift` on a banded slot therefore raises, and
+        drift_warnings() skips banded slots. A stale "owner must decide"
+        warning left standing after the decision is its own kind of lie.
+      - THE FILE-LEVEL `tolerance` DOES NOT WIDEN A BAND. The band states its
+        own edges; adding tolerance on top would enforce a window the workbook
+        never wrote. Tolerance applies to point locks only.
+      - REMEDIATION AIMS AT THE NEAREST LEGAL EDGE, never at a midpoint. The
+        writer is entitled to every count in the window, so the number CharLint
+        hands back is the cheapest legal edit — 3 characters to the ceiling,
+        not 7 to the middle.
 
 Return shape matches the sibling linters (prohiblint / voicelint) so the
 orchestrator can consume all three uniformly. The verdict, however, is NOT a
@@ -104,7 +149,28 @@ from pathlib import Path
 #: Tolerance used when a locks file does not declare one. 0 = exact match,
 #: including spaces (PRINCIPLES.txt Sec. 3). Files may override via
 #: their top-level "tolerance" field, but 0 is the product standard.
+#:
+#: Tolerance is a POINT-LOCK concept. A slot that declares `lock_range` already
+#: carries its own two edges, and widening them by the file's tolerance would
+#: enforce a window the source workbook never wrote — so tolerance is not
+#: applied to banded slots. See the "POINT LOCKS AND RANGE LOCKS" note above.
 DEFAULT_TOLERANCE = 0
+
+#: The key a slot uses to declare a RANGE lock (an inclusive band) instead of a
+#: point lock. Absent = point lock, which is the default and the common case.
+LOCK_RANGE_KEY = "lock_range"
+
+#: The only keys allowed inside a `lock_range` object. `min` and `max` are
+#: required; `source` names the row of the master workbook the band came from.
+#: Anything else is rejected rather than ignored: a typo'd key is a band that
+#: quietly means something other than what was written.
+LOCK_RANGE_REQUIRED = ("min", "max")
+LOCK_RANGE_OPTIONAL = ("source",)
+
+#: Single-number count fields. Alongside a band these are DOCUMENTATION, and
+#: each one must fall inside the band or the slot is stating two different
+#: rules at once (CorruptLocksError — never a precedence rule).
+EXACT_COUNT_FIELDS = ("principles_lock", "observed")
 
 #: The canonical form every count is taken in, and every comparison made in.
 #: NFC, never NFKC — see the "CANONICAL FORM" note in the module docstring.
@@ -179,6 +245,18 @@ class CorruptLocksError(CharLintError, ValueError):
     """
 
 
+class RangeLockedSlotError(CharLintError, ValueError):
+    """
+    A single-number answer was asked of a slot whose lock is a band.
+
+    Raised by enforced_lock() / target_for() when the slot declares
+    `lock_range`. There is no honest single number to return: 350 and 358 are
+    both the lock, and inventing a midpoint (or silently picking an edge) is
+    how a range gets flattened back into the point that caused this defect in
+    the first place. Callers want lock_band() / target_range_for().
+    """
+
+
 class UnknownSlotError(CharLintError, ValueError):
     """
     A candidate was supplied under a slot name the locks file does not define.
@@ -232,18 +310,120 @@ def _is_nonneg_int(value):
     return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
+def is_range_locked(spec):
+    """True when a slot declares a band (`lock_range`) rather than a point."""
+    return isinstance(spec, dict) and spec.get(LOCK_RANGE_KEY) is not None
+
+
 def enforced_lock(spec):
     """
-    The number CharLint actually enforces for a slot spec.
+    The single number CharLint enforces for a POINT-locked slot spec.
 
     `observed` (what the live template measures) wins when present, otherwise
     `principles_lock` (what PRINCIPLES.txt documents). The copy has to fit the
     template that exists, not the number in the write-up.
+
+    Raises RangeLockedSlotError for a band-locked slot, which has no single
+    enforced number. Use lock_band() when you want an answer for both kinds.
     """
+    if is_range_locked(spec):
+        raw = spec[LOCK_RANGE_KEY]
+        raise RangeLockedSlotError(
+            f"This slot is range-locked ({raw.get('min')}–{raw.get('max')} "
+            f"inclusive), so it has no single enforced count. Use lock_band() "
+            f"/ target_range_for(); flattening a band to one number is the "
+            f"defect this field exists to avoid."
+        )
     observed = spec.get("observed")
     if observed is not None:
         return observed
     return spec.get("principles_lock")
+
+
+def lock_band(spec):
+    """
+    The inclusive (min, max) window of legal character counts for a slot spec.
+
+    A POINT lock returns (n, n) — a point is a band of width zero — so every
+    caller downstream of this has exactly one code path and cannot forget the
+    banded case. Returns None only when the slot declares no number at all,
+    which validation permits solely for owner-flagged FLEX_TYPES slots.
+    """
+    if is_range_locked(spec):
+        raw = spec[LOCK_RANGE_KEY]
+        return (raw["min"], raw["max"])
+    point = enforced_lock(spec)
+    if point is None:
+        return None
+    return (point, point)
+
+
+def nearest_legal(actual, band):
+    """
+    The legal count closest to `actual` — i.e. `actual` clamped into the band.
+
+    This is the whole of the remediation policy in one line, and it is why an
+    out-of-range candidate is told to move to the NEAREST edge and an in-range
+    candidate is told nothing: for a legal count the nearest legal count is
+    itself, so the delta against it is 0. For a point lock the band is (n, n)
+    and this returns n for every input, which is the old behaviour exactly.
+    """
+    low, high = band
+    return min(max(actual, low), high)
+
+
+def _validate_lock_range(where, raw):
+    """
+    Validate a `lock_range` object and return its (min, max).
+
+    Every failure here is a CorruptLocksError, not a warning: a band whose
+    edges cannot be read is a gate whose rule cannot be read.
+    """
+    if not isinstance(raw, dict):
+        raise CorruptLocksError(
+            f"{where} has {LOCK_RANGE_KEY}={raw!r}; expected an object like "
+            f'{{"min": 350, "max": 358}}. The edges are named, not positional, '
+            f"so a reversed pair is impossible to write by accident."
+        )
+
+    allowed = set(LOCK_RANGE_REQUIRED) | set(LOCK_RANGE_OPTIONAL)
+    unknown = sorted(set(raw) - allowed)
+    if unknown:
+        raise CorruptLocksError(
+            f"{where} has unknown key(s) {unknown} inside {LOCK_RANGE_KEY}. "
+            f"Allowed: {', '.join(sorted(allowed))}. A misspelled edge would "
+            f"silently change the band, so it is rejected rather than ignored."
+        )
+
+    missing = [k for k in LOCK_RANGE_REQUIRED if k not in raw]
+    if missing:
+        raise CorruptLocksError(
+            f"{where} has {LOCK_RANGE_KEY} missing {missing}. A band needs both "
+            f"edges: {', '.join(LOCK_RANGE_REQUIRED)}."
+        )
+
+    for key in LOCK_RANGE_REQUIRED:
+        if not _is_nonneg_int(raw[key]):
+            raise CorruptLocksError(
+                f"{where} has {LOCK_RANGE_KEY}.{key}={raw[key]!r}; expected a "
+                f"non-negative int."
+            )
+
+    low, high = raw["min"], raw["max"]
+    if low > high:
+        raise CorruptLocksError(
+            f"{where} has {LOCK_RANGE_KEY} min={low} > max={high}. That band is "
+            f"empty: no character count could ever satisfy it, so every "
+            f"candidate would fail forever."
+        )
+
+    if "source" in raw and not (isinstance(raw["source"], str) and raw["source"].strip()):
+        raise CorruptLocksError(
+            f"{where} has {LOCK_RANGE_KEY}.source={raw['source']!r}; expected a "
+            f"non-empty string naming where the band came from."
+        )
+
+    return low, high
 
 
 def _validate_slot(name, spec, source, permanent=False):
@@ -284,6 +464,16 @@ def _validate_slot(name, spec, source, permanent=False):
         )
 
     if permanent:
+        # A never-touched slot is matched against its baseline string, so a
+        # band of acceptable LENGTHS is meaningless there: 350 characters of
+        # anything else is still not the brand line.
+        if LOCK_RANGE_KEY in spec:
+            raise CorruptLocksError(
+                f"{where} sits in `permanent_slots` and declares "
+                f"{LOCK_RANGE_KEY}. Permanent slots are compared as exact "
+                f"strings, never as counts, so a band of legal lengths cannot "
+                f"mean anything for one."
+            )
         # Mis-filing is checked in both directions: `permanent_slots` is only
         # for never-touched slots. A slot that gets rewritten belongs in
         # `slots`, where its character count is actually enforced.
@@ -321,10 +511,44 @@ def _validate_slot(name, spec, source, permanent=False):
                 f"{where} has {field}={value!r}; expected a non-negative int."
             )
 
-    if principles_lock is None and observed is None:
+    band = None
+    if LOCK_RANGE_KEY in spec:
+        band = _validate_lock_range(where, spec[LOCK_RANGE_KEY])
+        low, high = band
+
+        # A band and an exact count are only compatible when the exact count is
+        # a FACT ABOUT the band (a measurement or a transcription that lands
+        # inside it). Outside it, the slot states two different rules and there
+        # is deliberately no precedence: whichever is wrong has to be deleted by
+        # a human who knows which.
+        for field in EXACT_COUNT_FIELDS:
+            value = spec.get(field)
+            if value is not None and not (low <= value <= high):
+                raise CorruptLocksError(
+                    f"{where} declares {LOCK_RANGE_KEY} {low}–{high} "
+                    f"(inclusive) AND {field}={value}, which is outside that "
+                    f"band. A slot may not carry a range and a conflicting "
+                    f"exact count: CharLint has no precedence rule between "
+                    f"them, because a silent one means enforcing a number "
+                    f"nobody chose. Delete whichever of the two is wrong."
+                )
+
+        # Drift is `observed - principles_lock`: the distance between two POINTS.
+        # A band has no point to drift from — inside it every count is equally
+        # legal — so a drift number here would be an artifact of comparing a
+        # point to a band, which is the exact defect ranges were added to fix.
+        if "drift" in spec:
+            raise CorruptLocksError(
+                f"{where} declares both {LOCK_RANGE_KEY} and `drift`. Drift is "
+                f"defined only for a point lock (observed - principles_lock); "
+                f"a band has no single point to drift from, and every count "
+                f"inside it is legal. Delete the `drift` key."
+            )
+
+    if principles_lock is None and observed is None and band is None:
         raise CorruptLocksError(
-            f"{where} declares neither `principles_lock` nor `observed`. "
-            f"A locked slot needs a number to enforce."
+            f"{where} declares no `principles_lock`, `observed` or "
+            f"`{LOCK_RANGE_KEY}`. A locked slot needs a rule to enforce."
         )
 
     # Guard 1 (the spec'd one): a file whose own count disagrees with its own
@@ -360,14 +584,21 @@ def _validate_slot(name, spec, source, permanent=False):
     # `observed` (+ `drift`) exactly as cover_body does — that keeps the
     # disagreement visible instead of quietly rewriting the documented number.
     if slot_type not in FLEX_TYPES:
-        target = enforced_lock(spec)
-        if target != measured:
+        low, high = lock_band(spec)
+        if not (low <= measured <= high):
+            if band is None:
+                raise CorruptLocksError(
+                    f"{where} enforces {low} but len(baseline)={measured}; the "
+                    f"baseline would fail its own lock. If the template really "
+                    f"measures {measured}, record it as \"observed\": {measured} "
+                    f"with \"drift\": {measured - low} so the disagreement with "
+                    f"PRINCIPLES.txt stays visible."
+                )
             raise CorruptLocksError(
-                f"{where} enforces {target} but len(baseline)={measured}; the "
-                f"baseline would fail its own lock. If the template really "
-                f"measures {measured}, record it as \"observed\": {measured} "
-                f"with \"drift\": {measured - target} so the disagreement with "
-                f"PRINCIPLES.txt stays visible."
+                f"{where} declares {LOCK_RANGE_KEY} {low}–{high} (inclusive) "
+                f"but len(baseline)={measured}, which is outside it. The "
+                f"baseline would fail its own lock. Either the band is wrong or "
+                f"the captured string is."
             )
 
 
@@ -493,12 +724,54 @@ def _spec_for(slot_name, locks):
 
 
 def target_for(slot_name, locks):
-    """The enforced character target for a slot (permanent slots: their length)."""
+    """
+    The enforced character target for a POINT-locked slot.
+
+    Permanent slots report the length of their baseline. A band-locked slot
+    raises RangeLockedSlotError — it has a window, not a target — so callers
+    that want one number for every slot have to say which edge they mean.
+    Use target_range_for() for an answer that covers both kinds.
+    """
     locks = _coerce_locks(locks)
     spec, is_permanent = _spec_for(slot_name, locks)
     if is_permanent:
         return len(spec["baseline"])
+    if is_range_locked(spec):
+        low, high = lock_band(spec)
+        raise RangeLockedSlotError(
+            f"Slot {slot_name!r} is range-locked ({low}–{high} inclusive), so "
+            f"it has no single target. Use target_range_for({slot_name!r}, "
+            f"locks)."
+        )
     return enforced_lock(spec)
+
+
+def _slot_band(slot_name, locks):
+    """
+    ((min, max), is_banded) for any slot name, permanent slots included.
+
+    `is_banded` is whether the slot DECLARED a range, not whether its edges
+    happen to differ: a `lock_range` of {"min": 5, "max": 5} is still a range
+    lock, and should read as one, even though it admits a single count.
+    """
+    spec, is_permanent = _spec_for(slot_name, locks)
+    if is_permanent:
+        length = len(spec["baseline"])
+        return (length, length), False
+    return lock_band(spec), is_range_locked(spec)
+
+
+def target_range_for(slot_name, locks):
+    """
+    The inclusive (min, max) window of legal counts for any slot.
+
+    Defined for every slot: a point lock reports (n, n) and a permanent slot
+    reports (len(baseline), len(baseline)). This is the accessor that does not
+    have to know which kind of lock it is looking at.
+    """
+    locks = _coerce_locks(locks)
+    band, _ = _slot_band(slot_name, locks)
+    return band
 
 
 # ---------------------------------------------------------------------------
@@ -507,17 +780,27 @@ def target_for(slot_name, locks):
 
 def drift_warnings(locks):
     """
-    One warning per slot whose documented lock disagrees with the measurement.
+    One warning per POINT-locked slot whose documented lock disagrees with the
+    measurement.
 
     Emitted on every run, pass or fail, whether or not the slot was filled:
     drift is a property of the lock data, not of the candidate copy. CharLint
     does not pick a winner — it enforces the live measurement and keeps saying
     so until the owner reconciles the two numbers.
+
+    Band-locked slots are skipped, and that is not an omission. Drift asks
+    "which of these two numbers is the lock?"; inside a band that question has
+    no answer to give, because every count between the edges is the lock. A
+    documented point and a live measurement that both sit inside the band are
+    two legal counts, not a disagreement, and reporting them as drift is what
+    produced the false "-6" this module used to carry.
     """
     locks = _coerce_locks(locks)
     warnings = []
 
     for name, spec in _iter_slot_items(locks["slots"]):
+        if is_range_locked(spec):
+            continue
         documented = spec.get("principles_lock")
         observed = spec.get("observed")
         if documented is None or observed is None or documented == observed:
@@ -625,7 +908,8 @@ def _was_recomposed(candidate):
     return isinstance(candidate, str) and candidate != _canonical(candidate)
 
 
-def _blank_result(expected, actual, delta, failure_mode=None, nfc_normalized=False):
+def _blank_result(expected, actual, delta, failure_mode=None, nfc_normalized=False,
+                  expected_range=None):
     return {
         "violations": [],
         "score": 100,
@@ -635,7 +919,21 @@ def _blank_result(expected, actual, delta, failure_mode=None, nfc_normalized=Fal
         "delta": delta,
         "failure_mode": failure_mode,
         "nfc_normalized": nfc_normalized,
+        "expected_range": expected_range,
     }
+
+
+def _range_field(spec):
+    """`[min, max]` for a band-locked slot, None for a point lock.
+
+    A list (not a tuple) because this ends up in the scorecard JSON, and None
+    for point locks so a consumer can tell "no band" from "a band that happens
+    to be one number wide" without re-reading the locks file.
+    """
+    if not is_range_locked(spec):
+        return None
+    low, high = lock_band(spec)
+    return [low, high]
 
 
 def check_slot(slot_name, candidate, locks):
@@ -651,6 +949,16 @@ def check_slot(slot_name, candidate, locks):
     differently — overflow overruns the box and pushes text off the page,
     underfill leaves a short last line and kills the rhythm of the block
     (PRINCIPLES.txt Sec. 3).
+
+    `expected` is the LEGAL COUNT NEAREST to what was submitted. For a point
+    lock that is always the lock itself, so nothing about this changes. For a
+    band-locked slot it is the candidate's own count while the candidate is
+    legal, and the nearer edge once it is not — which keeps `delta ==
+    actual - expected` true in every case, makes `delta == 0` mean "legal", and
+    makes the remediation number the cheapest legal edit rather than a walk to
+    some midpoint. `expected_range` carries the band itself ([min, max], or
+    None for a point lock) so a reader is never shown one edge as if it were
+    the whole rule.
 
     `actual` is the CANONICAL (NFC) character count, which is what the layout
     renders; `nfc_normalized` is True when the raw candidate was spelled in
@@ -669,41 +977,63 @@ def check_slot(slot_name, candidate, locks):
 
     recomposed = _was_recomposed(candidate)
 
+    band = lock_band(spec)
+    banded = is_range_locked(spec)
+    range_field = _range_field(spec)
+
     if _slot_type(spec) in FLEX_TYPES:
         # Owner-flagged flex slot: measured and reported, never gated.
         actual = _measure(candidate)
-        expected = enforced_lock(spec)
+        expected = None if band is None else nearest_legal(actual, band)
         result = _blank_result(expected, actual,
                                None if expected is None else actual - expected,
-                               nfc_normalized=recomposed)
+                               nfc_normalized=recomposed,
+                               expected_range=range_field)
         return result
 
-    tolerance = locks.get("tolerance", DEFAULT_TOLERANCE)
-    expected = enforced_lock(spec)
+    # A band states its own two edges, so the file-level tolerance does not
+    # apply to it: widening 350–358 by a tolerance would enforce a window the
+    # source never wrote. Tolerance is a point-lock concept.
+    tolerance = 0 if banded else locks.get("tolerance", DEFAULT_TOLERANCE)
+    low, high = band
     actual = _measure(candidate)
+    expected = nearest_legal(actual, band)
     delta = actual - expected
     excess = abs(delta) - tolerance
 
     if excess <= 0:
-        return _blank_result(expected, actual, delta, nfc_normalized=recomposed)
+        return _blank_result(expected, actual, delta, nfc_normalized=recomposed,
+                             expected_range=range_field)
 
     tol_note = "" if tolerance == 0 else f" (tolerance {tolerance})"
     if delta > 0:
         mode, label, fix = FAILURE_OVERFLOW, "OVERFLOW", "Remove"
         consequence = ("the box overruns — the text wraps past its last line "
                        "and pushes off the page")
+        edge_word = "over the top of its legal range"
     else:
         mode, label, fix = FAILURE_UNDERFILL, "UNDERFILL", "Add"
         consequence = ("the box runs short — a runt last line, and the block "
                        "loses the rhythm the layout was approved on")
+        edge_word = "under the bottom of its legal range"
 
-    violation = (
-        f"{label}: {slot_name} is {abs(delta)} character(s) "
-        f"{'over' if delta > 0 else 'under'} the enforced lock{tol_note}. "
-        f"Enforced lock {expected}, candidate {actual}, delta {delta:+d}. "
-        f"{fix} {excess} character(s) to land on the lock. "
-        f"Hard fail — {consequence}."
-    )
+    if banded:
+        # `expected` is already the nearer edge, so the number below is the
+        # cheapest legal edit — never a walk to the middle of the window.
+        violation = (
+            f"{label}: {slot_name} is {abs(delta)} character(s) {edge_word}. "
+            f"Legal range {low}–{high} inclusive, candidate {actual}. "
+            f"{fix} {excess} character(s) to land on {expected}, the nearest "
+            f"legal count. Hard fail — {consequence}."
+        )
+    else:
+        violation = (
+            f"{label}: {slot_name} is {abs(delta)} character(s) "
+            f"{'over' if delta > 0 else 'under'} the enforced lock{tol_note}. "
+            f"Enforced lock {expected}, candidate {actual}, delta {delta:+d}. "
+            f"{fix} {excess} character(s) to land on the lock. "
+            f"Hard fail — {consequence}."
+        )
 
     penalty = max(MAX_CHAR_PENALTY, PENALTY_PER_CHAR * excess)
     return {
@@ -715,6 +1045,7 @@ def check_slot(slot_name, candidate, locks):
         "delta": delta,
         "failure_mode": mode,
         "nfc_normalized": recomposed,
+        "expected_range": range_field,
     }
 
 
@@ -763,13 +1094,21 @@ def _check_permanent(slot_name, candidate, baseline):
         "delta": delta,
         "failure_mode": FAILURE_PERMANENT_MUTATION,
         "nfc_normalized": _was_recomposed(candidate),
+        "expected_range": None,
     }
 
 
-def _not_filled(slot_name, expected):
+def _not_filled(slot_name, spec):
+    """An empty fill, reported against whichever kind of lock the slot has."""
+    band = lock_band(spec)
+    low, high = band
+    # An empty fill is 0 characters, so the nearest legal count is the floor —
+    # the same clamp every other candidate goes through.
+    expected = nearest_legal(0, band)
+    lock_text = f"{low}–{high} (inclusive)" if is_range_locked(spec) else f"{low}"
     violation = (
         f"NOT FILLED: {slot_name} is locked in the locks file but absent from "
-        f"the candidate copy. Enforced lock {expected}, nothing submitted. "
+        f"the candidate copy. Enforced lock {lock_text}, nothing submitted. "
         f"Hard fail — an unfilled slot is not a passing slot."
     )
     return {
@@ -781,6 +1120,7 @@ def _not_filled(slot_name, expected):
         "delta": -expected,
         "failure_mode": FAILURE_NOT_FILLED,
         "nfc_normalized": False,
+        "expected_range": _range_field(spec),
     }
 
 
@@ -796,23 +1136,60 @@ def chars_to_target(slot_name, candidate, locks):
     segments and swapping word-level alternates until the count lands on the
     lock to the character". This is the read-out for that loop.
 
+    For a BAND-locked slot there is no "the character" to land on — there is a
+    window — and this says so rather than inventing a target. A draft inside
+    the window is done (action "none", nothing to add or remove, no nagging
+    toward some preferred number), and a draft outside it is given the distance
+    to the NEAREST edge, which is the cheapest legal edit.
+
     Returns:
-        {"slot": str, "expected": int, "actual": int,
-         "delta": int,          # signed: + = over the lock, - = under it
+        {"slot": str,
+         "expected": int,       # the legal count nearest the draft
+         "expected_range": [min, max] | None,   # the band, when there is one
+         "actual": int,
+         "delta": int,          # signed: + = over the legal counts, - = under
          "chars_needed": int,   # what the WRITER does: + = add, - = remove
          "action": "add" | "remove" | "none",
-         "tolerance": int, "within_tolerance": bool, "message": str}
+         "tolerance": int,      # 0 for a band: the band is its own tolerance
+         "within_tolerance": bool,   # True = this count is legal as it stands
+         "message": str}
     """
     locks = _coerce_locks(locks)
-    expected = target_for(slot_name, locks)
+    band, banded = _slot_band(slot_name, locks)
+    low, high = band
     actual = _measure(candidate)
-    tolerance = locks.get("tolerance", DEFAULT_TOLERANCE)
+    expected = nearest_legal(actual, band)
+    # A band states its own edges; only a point lock reads the file tolerance.
+    tolerance = 0 if banded else locks.get("tolerance", DEFAULT_TOLERANCE)
 
     delta = actual - expected
     within = abs(delta) <= tolerance
     chars_needed = -delta
 
-    if within:
+    if banded:
+        window = f"{low}–{high} (inclusive)"
+        if within:
+            action = "none"
+            message = (
+                f"{slot_name}: {actual} characters, inside the legal window "
+                f"{window}. Nothing to add or remove — this is a window, not a "
+                f"single target: every count from {low} to {high} lands."
+            )
+        elif chars_needed > 0:
+            action = "add"
+            message = (
+                f"{slot_name}: {actual} characters, legal window {window}. "
+                f"Add {chars_needed} character(s) to reach {expected}, the "
+                f"nearest legal count."
+            )
+        else:
+            action = "remove"
+            message = (
+                f"{slot_name}: {actual} characters, legal window {window}. "
+                f"Remove {abs(chars_needed)} character(s) to reach {expected}, "
+                f"the nearest legal count."
+            )
+    elif within:
         action = "none"
         message = (
             f"{slot_name}: on the lock at {actual} characters. Nothing to add "
@@ -837,6 +1214,7 @@ def chars_to_target(slot_name, candidate, locks):
     return {
         "slot": slot_name,
         "expected": expected,
+        "expected_range": [low, high] if banded else None,
         "actual": actual,
         "delta": delta,
         "chars_needed": chars_needed,
@@ -872,9 +1250,15 @@ def run_charlint(candidates, locks):
               "violations": [str, ...],
               "score": int,        # starts at 100, penalties applied, floor 0
               "passed": bool,
-              "expected": int,     # the ENFORCED lock for this slot
+              "expected": int,     # the LEGAL COUNT NEAREST the candidate: the
+                                   #   lock itself for a point-locked slot, the
+                                   #   candidate's own count or the nearer edge
+                                   #   for a band-locked one
+              "expected_range": [int, int] | None,   # the band, when the slot
+                                   #   declares one; None for a point lock
               "actual": int,       # canonical (NFC) character count; no strip
-              "delta": int,        # actual - expected; + over, - under
+              "delta": int,        # actual - expected; + over, - under, and
+                                   #   therefore 0 for any legal count
               "failure_mode": str | None,
               "nfc_normalized": bool,  # the raw candidate was not already NFC
             },
@@ -944,7 +1328,7 @@ def run_charlint(candidates, locks):
             # there is nothing to gate — but the absence is stated out loud.
             submission_warnings.append(_not_submitted_warning(name, _slot_type(spec)))
         else:
-            results[name] = _not_filled(name, enforced_lock(spec))
+            results[name] = _not_filled(name, spec)
 
     for name in permanent:
         if name in candidates:
@@ -971,12 +1355,16 @@ def run_charlint(candidates, locks):
 def format_report(result):
     """Render a run_charlint() result as plain text for a terminal."""
     lines = []
-    lines.append(f"{'Slot':<16} {'Lock':>6} {'Actual':>7} {'Delta':>7}  Status")
-    lines.append(f"{'-'*16} {'-'*6} {'-'*7} {'-'*7}  {'-'*6}")
+    lines.append(f"{'Slot':<16} {'Lock':>9} {'Actual':>7} {'Delta':>7}  Status")
+    lines.append(f"{'-'*16} {'-'*9} {'-'*7} {'-'*7}  {'-'*6}")
     for name, res in result["slots"].items():
         status = "PASS" if res["passed"] else "FAIL"
+        # A banded slot prints its whole window. Printing one edge as "the
+        # lock" is how a range gets read back as a point.
+        band = res.get("expected_range")
+        lock_cell = f"{band[0]}–{band[1]}" if band else f"{res['expected']}"
         lines.append(
-            f"{name:<16} {res['expected']:>6} {res['actual']:>7} "
+            f"{name:<16} {lock_cell:>9} {res['actual']:>7} "
             f"{res['delta']:>+7}  {status}"
         )
 

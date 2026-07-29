@@ -31,6 +31,7 @@ Every test writes its scorecard to a pytest tmp dir; `_guard_real_results_dir`
 below fails the test if anything touches the tracked results/ directory.
 """
 
+import inspect
 import json
 import os
 import re
@@ -57,10 +58,12 @@ from orchestrator import (
 )
 
 # The linters, reached through the orchestrator so the tests resolve exactly the
-# modules it resolved (charlint/ is both a package and a module name).
+# modules it resolved (charlint/ is both a package and a module name, and
+# synthlint/ is both a package and the name of the module inside it).
 prohiblint = orchestrator.prohiblint
 voicelint = orchestrator.voicelint
 charlint = orchestrator.charlint
+synthlint = orchestrator.synthlint
 
 HERE = orchestrator.HERE
 SAMPLE_ISSUE = HERE / "sample_issue.json"
@@ -108,13 +111,58 @@ def write_issue(tmp_path):
     return _write
 
 
-# -- magazine copy that actually passes both linters ------------------------
+# -- magazine copy that actually passes all three linters --------------------
 
 #: Filler sentences chosen to carry no ProhibLint or VoiceLint markers at all:
 #: no em-dash, no AI-blocklist term, no second-person pattern, no digits with
 #: units, no "at <word>"/"in <word>" (VoiceLint scores those case-insensitively,
-#: see the notes in the report), no hedging verbs.
+#: see the notes in the report), no hedging verbs, and no reporting verb —
+#: "says" alone put five FITT_NEGATIVE hits into a padded section and tipped it
+#: into a cross-contamination flag.
+#:
+#: LENGTHS ARE THE POINT, not decoration. This pool used to be eight sentences
+#: of 11 to 14 words each, which padded a section into its word-count range and
+#: — once SynthLint became the fourth gate — flattened four of the seven
+#: sections below the burstiness floor (Training CV 0.286, Nutrition 0.218,
+#: Culture 0.277, Social 0.237, floor 0.29). That was SynthLint being right:
+#: mechanically repeating one pool of same-length sentences is exactly the
+#: machine rhythm it exists to catch, and the fixture rather than the linter was
+#: at fault. The pool now runs 3 to 25 words and alternates short against long,
+#: which is what real prose does; every sentence is still built out of the
+#: original pool's vocabulary so the register — and therefore VoiceLint's
+#: affinity arithmetic — is unchanged. Sections now measure CV 0.63 to 0.84.
+#:
+#: `fixtures/magazine_pass.json`, the real positive control, needed no such fix:
+#: it was hand-written and scores 100 on SynthLint untouched.
 _FILLER = (
+    "The platform on Yesler stays open from six to nine on weekday mornings.",
+    "Plates go back.",
+    "Chalk bowls sit beside the rack row and get filled twice daily, and the "
+    "programming board lists the week as plain text and nothing else.",
+    "Bar collars stay put.",
+    "Plates go back on the tree before the next group steps onto the platform.",
+    "The rack row runs north.",
+    "Bar collars live on a shelf by the door and stay put.",
+    "Chalk bowls get filled.",
+    "The rack row runs along the north wall toward the chalk stand, and sign-in "
+    "happens on paper by the front desk, ordered by arrival.",
+    "Nobody rushes.",
+    "The lifting floor stays quiet between sets, which regulars treat as the house rule.",
+    "The programming board lists the week.",
+    "Sign-in happens on paper by the front desk, ordered by arrival.",
+    "The platform stays open.",
+    "The programming board lists the week as plain text and nothing else, and "
+    "the lifting floor stays quiet between sets.",
+    "Chalk dust settles.",
+)
+
+#: The pool `_FILLER` used to be, kept verbatim because it is now the cheapest
+#: REAL SynthLint failure in the repo: eight sentences of 11 to 14 words,
+#: repeated until a section is long enough. ProhibLint scores it 100 and
+#: VoiceLint scores it 100 — it was the passing fixture for this whole suite —
+#: and SynthLint fails it on rhythm alone. That is what makes it the right
+#: fixture for "fails ONLY SynthLint" without stubbing anything.
+_FLAT_FILLER = (
     "The platform on Yesler stays open from six to nine on weekday mornings.",
     "Chalk bowls sit beside the rack row and get filled twice daily.",
     "The programming board lists the week as plain text and nothing else.",
@@ -129,36 +177,45 @@ _FILLER = (
 _FITT_SECTIONS = {"Supplements", "Recovery", "Nightlife"}
 
 
-def _pad_to_word_range(text, target_words, short_paragraphs):
+def _pad_to_word_range(text, target_words, short_paragraphs, pool=_FILLER):
     out, words, i = [text], len(text.split()), 0
     while words < target_words:
         n = 2 if short_paragraphs else 6
-        para = " ".join(_FILLER[(i + k) % len(_FILLER)] for k in range(n))
+        para = " ".join(pool[(i + k) % len(pool)] for k in range(n))
         i += n
         out.append(para)
         words += len(para.split())
     return "\n\n".join(out)
 
 
-def magazine_sections_pass():
-    """
-    The sample issue, cleaned of its two planted AI-blocklist words and padded
-    into every section's word-count range. Built rather than checked in so it
-    tracks the linters' own constants instead of a stale copy of them.
-    """
+def _sample_sections():
+    """The sample issue with its two planted AI-blocklist words removed."""
     sections = dict(json.loads(SAMPLE_ISSUE.read_text(encoding="utf-8"))["sections"])
     sections["Supplements"] = sections["Supplements"].replace(
         "Delve into the research if you want the mechanism.",
         "The mechanism is well documented.")
     sections["Recovery"] = sections["Recovery"].replace(
         "The vibrant recovery community at", "The recovery crowd at")
+    return sections
+
+
+def magazine_sections_pass(pool=_FILLER):
+    """
+    The sample issue, cleaned of its two planted AI-blocklist words and padded
+    into every section's word-count range. Built rather than checked in so it
+    tracks the linters' own constants instead of a stale copy of them.
+
+    `pool` is the filler it is padded from. The default passes all three
+    linters; `_FLAT_FILLER` passes ProhibLint and VoiceLint and fails SynthLint.
+    """
     return {
         name: _pad_to_word_range(
             text,
             sum(prohiblint.WORD_COUNT_RANGES[name]) // 2,
             name in _FITT_SECTIONS,
+            pool=pool,
         )
-        for name, text in sections.items()
+        for name, text in _sample_sections().items()
     }
 
 
@@ -236,6 +293,37 @@ def synthetic_locks_file(tmp_path):
     path.write_text(json.dumps(synthetic_locks()), encoding="utf-8")
     charlint.load_locks(path)  # fixture must be a valid locks file
     return str(path)
+
+
+@pytest.fixture
+def drifting_locks_file(tmp_path, real_locks):
+    """
+    The real locks with a GENUINE point-lock drift injected on city_intro.
+
+    The shipped file no longer carries one. cover_body used to record
+    `drift: -6` against a documented 357, but the master workbook states that
+    slot as a BAND (350-358 incl.), so 351 and 357 are both legal and nothing
+    drifted — the "-6" was a point being compared to a range. cover_body is now
+    range-locked and, by rule, cannot carry a drift at all.
+
+    Drift PROPAGATION is still an orchestrator contract, so the tests below
+    keep testing it — on a file that genuinely drifts rather than on a product
+    fact that stopped being true. Everything else about the fixture (the real
+    baselines, the real prose) is unchanged, so the runs still pass end to end.
+    """
+    data = json.loads(json.dumps(real_locks))       # deep copy of plain JSON
+    data["slots"]["city_intro"]["principles_lock"] = 630   # observed stays 628
+    data["slots"]["city_intro"]["drift"] = -2
+    path = tmp_path / "locks_drift.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    charlint.load_locks(path)  # fixture must be a valid locks file
+    return str(path)
+
+
+#: cover_body is range-locked to 350-358 and its baseline measures 351, so it
+#: takes 8 extra characters to push it past the ceiling. Tests that use the
+#: first slot as a deliberate trip-wire use this rather than a bare "x".
+COVER_BODY_OVERFLOW = "x" * 8
 
 
 def run(issue_path, out_dir, **kwargs):
@@ -639,7 +727,11 @@ def test_workout_series_runs_end_to_end(write_issue, out_dir, ws_issue_pass, rea
     assert sc["issue_level_checks"]["passed"] is None
     for name, unit in sc["slots"].items():
         assert unit["char_delta"] == 0
-        assert unit["char_expected"] == charlint.target_for(name, real_locks)
+        # Read through target_range_for, which answers for a point lock (n, n)
+        # and for a range lock alike — cover_body is banded, so asking
+        # target_for() for its one number is now an error, not a fact.
+        low, high = charlint.target_range_for(name, real_locks)
+        assert low <= unit["char_expected"] <= high
         assert unit["status"] == STATUS_PASS
     assert sc["overall"] == STATUS_PASS
 
@@ -721,46 +813,64 @@ def test_permanent_slot_mutation_is_caught(write_issue, out_dir, ws_issue_pass):
 # TASK 4 — CharLint drift warnings surface everywhere and change nothing
 # ===========================================================================
 
-def test_drift_warnings_reach_the_scorecard_json(write_issue, out_dir, ws_issue_pass):
+def test_drift_warnings_reach_the_scorecard_json(
+        write_issue, out_dir, ws_issue_pass, drifting_locks_file):
     path = write_issue(ws_issue_pass)
-    sc = run(path, out_dir, ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
+    sc = run(path, out_dir, ruleset=WORKOUT_SERIES, locks=drifting_locks_file)
     on_disk = json.loads(
         (out_dir / orchestrator.scorecard_filename(sc["issue_id"])).read_text(encoding="utf-8"))
     assert on_disk["warnings"] == sc["warnings"]
     drift = [w for w in on_disk["warnings"] if w.startswith("DRIFT:")]
-    assert drift, "the cover_body 351-vs-357 drift must not be dropped"
-    assert "cover_body" in drift[0] and "357" in drift[0] and "351" in drift[0]
+    assert drift, "a real point-lock drift must not be dropped"
+    assert "city_intro" in drift[0] and "630" in drift[0] and "628" in drift[0]
+
+
+def test_the_shipped_locks_file_raises_no_drift(write_issue, out_dir, ws_issue_pass):
+    """
+    The other half of that contract: the harness reports the drift it HAS, and
+    does not manufacture drift it does not. cover_body's old "-6" was a point
+    being compared to the master workbook's 350-358 band — it is a range lock
+    now, and a passing run says nothing about it.
+    """
+    path = write_issue(ws_issue_pass)
+    sc = run(path, out_dir, ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
+    assert sc["overall"] == STATUS_PASS
+    assert [w for w in sc["warnings"] if w.startswith("DRIFT:")] == []
 
 
 def test_drift_warnings_reach_the_console_in_both_modes(
-        write_issue, out_dir, ws_issue_pass, capsys):
+        write_issue, out_dir, ws_issue_pass, drifting_locks_file, capsys):
     path = write_issue(ws_issue_pass)
-    run(path, out_dir, ci=False, ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
+    run(path, out_dir, ci=False, ruleset=WORKOUT_SERIES, locks=drifting_locks_file)
     normal = capsys.readouterr().out
-    assert "WARNINGS" in normal and "DRIFT: cover_body" in normal
+    assert "WARNINGS" in normal and "DRIFT: city_intro" in normal
 
-    run(path, out_dir, ci=True, ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
+    run(path, out_dir, ci=True, ruleset=WORKOUT_SERIES, locks=drifting_locks_file)
     ci = capsys.readouterr().out
-    assert "[warning] DRIFT: cover_body" in ci
+    assert "[warning] DRIFT: city_intro" in ci
 
 
-def test_warnings_do_not_flip_the_exit_code(write_issue, out_dir, ws_issue_pass):
+def test_warnings_do_not_flip_the_exit_code(
+        write_issue, out_dir, ws_issue_pass, drifting_locks_file):
     path = write_issue(ws_issue_pass)
-    sc = run(path, out_dir, ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
+    sc = run(path, out_dir, ruleset=WORKOUT_SERIES, locks=drifting_locks_file)
     assert sc["warnings"]                       # warnings present ...
     assert sc["overall"] == STATUS_PASS          # ... and the run still passes
     assert orchestrator.main(["--issue", path, "--ci", "--ruleset", WORKOUT_SERIES,
-                              "--locks", str(REAL_LOCKS), "--out-dir", str(out_dir)]) == 0
+                              "--locks", drifting_locks_file,
+                              "--out-dir", str(out_dir)]) == 0
 
 
-def test_warnings_survive_a_truncated_run(write_issue, out_dir, ws_issue_pass):
+def test_warnings_survive_a_truncated_run(
+        write_issue, out_dir, ws_issue_pass, drifting_locks_file):
     """Drift is a property of the locks file, so it is reported even when the
     run stops at the first slot."""
     issue = dict(ws_issue_pass)
     issue["slots"] = dict(issue["slots"])
-    issue["slots"]["cover_body"] += "x"
+    issue["slots"]["cover_body"] += COVER_BODY_OVERFLOW
     path = write_issue(issue)
-    sc = run(path, out_dir, fail_fast=True, ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
+    sc = run(path, out_dir, fail_fast=True, ruleset=WORKOUT_SERIES,
+             locks=drifting_locks_file)
     assert sc["run"]["truncated"] is True
     assert any(w.startswith("DRIFT:") for w in sc["warnings"])
 
@@ -925,6 +1035,598 @@ def test_the_workout_series_verdict_is_charlint_and_prohiblint(
 
 
 # ===========================================================================
+# SynthLint — the fourth gate, universal, blocking, on BOTH rulesets
+# ===========================================================================
+#
+# Everything below exists because "the wiring works for one ruleset" does not
+# imply "it works for both". The two evaluation paths are separate functions
+# with separate conjunctions, so every contract here is asserted twice — once
+# per line — rather than once and generalised.
+#
+# The other three linters are ruleset-aware and two of them sit out a line.
+# SynthLint is not: it takes ONE STRING, has no ruleset parameter, and runs on
+# every unit of every submission. A test that lets it be skipped anywhere is
+# the regression these tests are for.
+
+#: The real, shipped SynthLint pass threshold, read off the module rather than
+#: written down here. Every assertion below that needs a number uses this.
+SYNTH_PASS_THRESHOLD = synthlint.PASS_THRESHOLD
+
+#: 628 characters exactly, which is city_intro's char lock, and 11 sentences of
+#: 9 to 11 words each, which is a CV of 0.074 against a floor of 0.29. It clears
+#: CharLint to the character and scores 100 on ProhibLint's workout_series
+#: ruleset, so the ONLY thing wrong with it is that it reads as machine-written.
+#: The workout_series counterpart to padding a magazine section with
+#: `_FLAT_FILLER`, and the reason both lines get a non-stubbed test.
+_FLAT_SLOT_628 = (
+    "The weight floor on Terry opens early on weekday mornings. A cable stack "
+    "sits along the north wall beside the racks. Dumbbells run from five pounds "
+    "up to one hundred. Front desk staff hand out towels and keep the sauna "
+    "warm. Lockers stand near the door with the showers behind them. A class "
+    "board lists the week across a single printed page. The garage validates "
+    "parking before half past eight each day. Coffee counters down the block "
+    "open their doors at seven. A tiled room on 9th shuts its door by four "
+    "sharp. The walk between those rooms takes six flat city minutes. Nobody "
+    "books the final class of the evening without cause."
+)
+
+
+@pytest.fixture
+def synth_spy(monkeypatch):
+    """Records the exact text SynthLint was handed, in call order."""
+    seen = []
+    real = synthlint.run_synthlint
+
+    def spy(text):
+        seen.append(text)
+        return real(text)
+
+    monkeypatch.setattr(synthlint, "run_synthlint", spy)
+    return seen
+
+
+def _stub_synth_run(passed, score=100, violations=(), fail_only=None):
+    """
+    Stubbed SynthLint verdicts.
+
+    `fail_only` is the exact TEXT of the one unit that should come back with
+    `passed`; every other text gets the real verdict. Matching on the text and
+    not on a unit name is deliberate — run_synthlint is handed a bare string
+    and nothing else, and a stub that pretended otherwise would be testing an
+    interface this wiring does not have.
+    """
+    real = synthlint.run_synthlint
+
+    def _run(text):
+        if fail_only is not None and text != fail_only:
+            return real(text)
+        return {"violations": list(violations), "score": score,
+                "passed": passed, "flags": {"_metrics": {}}}
+    return _run
+
+
+#: The one stubbed tell every "fails only SynthLint" test below files.
+_STUB_TELL = "Flat sentence rhythm: stubbed tell."
+
+
+# -- it is CALLED for every unit, on both lines -----------------------------
+
+def test_synthlint_is_called_for_every_magazine_section(
+        write_issue, out_dir, synth_spy):
+    issue = magazine_issue_pass()
+    path = write_issue(issue)
+    sc = run(path, out_dir)
+    assert sc["overall"] == STATUS_PASS
+    # Every section's text, once each, and nothing else.
+    assert sorted(synth_spy) == sorted(issue["sections"].values())
+    assert len(synth_spy) == len(prohiblint.SECTIONS) == 7
+
+
+def test_synthlint_is_called_for_every_workout_series_slot(
+        write_issue, out_dir, ws_issue_pass, synth_spy, real_locks):
+    path = write_issue(ws_issue_pass)
+    sc = run(path, out_dir, ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
+    assert sc["overall"] == STATUS_PASS
+    assert sorted(synth_spy) == sorted(ws_issue_pass["slots"].values())
+    assert len(synth_spy) == len(charlint.slot_names(real_locks)) == 7
+
+
+def test_synthlint_reads_a_permanent_slot_that_prohiblint_skips(
+        write_issue, out_dir, ws_issue_pass, synth_spy):
+    """
+    The one place the two prose gates deliberately disagree about scope.
+
+    A PERMANENT slot is never rewritten, so ProhibLint sits it out and CharLint's
+    exact-string check is its gate. SynthLint still reads it: "does this string
+    read as machine-written" is a question about the string, not about who is
+    allowed to edit it — and an allowlist of slots to skip is exactly what this
+    linter is not allowed to grow.
+    """
+    permanent = "THE CITY IS THE GYM."
+    issue = dict(ws_issue_pass)
+    issue["slots"] = dict(issue["slots"], brand_subline=permanent)
+    path = write_issue(issue)
+    sc = run(path, out_dir, ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
+    unit = sc["slots"]["brand_subline"]
+    assert unit["status"] == STATUS_PASS
+    assert unit["prohib_score"] is None            # ProhibLint sat it out ...
+    assert unit["synth_score"] == 100              # ... SynthLint did not
+    assert unit["synth_passed"] is True
+    assert permanent in synth_spy
+
+
+def test_synthlint_takes_one_string_and_no_ruleset():
+    """
+    The shape difference from the other three, pinned on the REAL function (no
+    spy in this test — a stub would report its own signature). run_synthlint
+    takes one positional parameter and no ruleset, and it raises rather than
+    quietly scoring something when handed a sections dict.
+    """
+    params = list(inspect.signature(synthlint.run_synthlint).parameters)
+    assert len(params) == 1, params
+    assert "ruleset" not in params
+    with pytest.raises(TypeError):
+        synthlint.run_synthlint({"Training": "some copy"})
+
+
+@pytest.mark.parametrize("ruleset", [MAGAZINE, WORKOUT_SERIES])
+def test_the_orchestrator_hands_synthlint_bare_strings(
+        write_issue, out_dir, ws_issue_pass, synth_spy, ruleset):
+    """One unit's text per call, never a container — on both lines."""
+    if ruleset == MAGAZINE:
+        path, kwargs = write_issue(magazine_issue_pass()), {}
+    else:
+        path = write_issue(ws_issue_pass)
+        kwargs = {"ruleset": WORKOUT_SERIES, "locks": str(REAL_LOCKS)}
+    run(path, out_dir, **kwargs)
+    assert synth_spy
+    assert all(isinstance(text, str) for text in synth_spy)
+
+
+# -- a SynthLint-only failure fails the unit and the run, on BOTH lines ------
+
+def test_a_section_that_fails_only_synthlint_fails_the_run(
+        write_issue, out_dir, monkeypatch):
+    """magazine, stubbed: everything else about Nutrition is clean."""
+    issue = magazine_issue_pass()
+    monkeypatch.setattr(synthlint, "run_synthlint",
+                        _stub_synth_run(False, score=44, violations=[_STUB_TELL],
+                                        fail_only=issue["sections"]["Nutrition"]))
+    path = write_issue(issue)
+    sc = run(path, out_dir)
+    unit = sc["sections"]["Nutrition"]
+    assert unit["prohib_passed"] is True           # ProhibLint is happy
+    assert unit["voice_passed"] is True            # VoiceLint is happy
+    assert unit["synth_passed"] is False           # ... and SynthLint is not
+    assert unit["synth_score"] == 44
+    assert unit["status"] == STATUS_FAIL
+    assert sc["overall"] == STATUS_FAIL
+    assert orchestrator.main(["--issue", path, "--ci", "--out-dir", str(out_dir)]) == 1
+    # Every other section still passes: the failure is the unit's, not the run's.
+    assert [n for n, u in sc["sections"].items() if u["status"] == STATUS_FAIL] == ["Nutrition"]
+
+
+def test_a_slot_that_fails_only_synthlint_fails_the_run(
+        write_issue, out_dir, ws_issue_pass, monkeypatch):
+    """workout_series, stubbed. The same contract, asserted separately: the two
+    rulesets are two functions with two conjunctions."""
+    slots = ws_issue_pass["slots"]
+    monkeypatch.setattr(synthlint, "run_synthlint",
+                        _stub_synth_run(False, score=44, violations=[_STUB_TELL],
+                                        fail_only=slots["counter_cafe"]))
+    path = write_issue(ws_issue_pass)
+    sc = run(path, out_dir, ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
+    unit = sc["slots"]["counter_cafe"]
+    assert unit["char_passed"] is True and unit["char_delta"] == 0
+    assert unit["prohib_passed"] is True
+    assert unit["synth_passed"] is False
+    assert unit["synth_score"] == 44
+    assert unit["status"] == STATUS_FAIL
+    assert sc["overall"] == STATUS_FAIL
+    assert orchestrator.main(["--issue", path, "--ci", "--ruleset", WORKOUT_SERIES,
+                              "--locks", str(REAL_LOCKS), "--out-dir", str(out_dir)]) == 1
+    assert [n for n, u in sc["slots"].items() if u["status"] == STATUS_FAIL] == ["counter_cafe"]
+
+
+def test_real_flat_copy_fails_only_synthlint_on_the_magazine_line(
+        write_issue, out_dir):
+    """
+    Nothing stubbed. The retired filler pool pads Nutrition into its word-count
+    range, ProhibLint and VoiceLint score it 100 apiece, and SynthLint fails it
+    on rhythm. This is the fixture this suite shipped with until SynthLint was
+    wired in, which is the strongest available evidence the check is doing work
+    the other two do not.
+    """
+    issue = magazine_issue_pass()
+    issue["issue_id"] = "VOL.TEST.FLAT"
+    issue["sections"]["Nutrition"] = magazine_sections_pass(pool=_FLAT_FILLER)["Nutrition"]
+    path = write_issue(issue)
+    sc = run(path, out_dir)
+    unit = sc["sections"]["Nutrition"]
+    assert unit["prohib_passed"] is True and unit["prohib_score"] == 100
+    assert unit["voice_passed"] is True and unit["voice_score"] == 100
+    assert unit["synth_passed"] is False
+    assert unit["synth_score"] < SYNTH_PASS_THRESHOLD
+    assert any("rhythm" in v.lower() for v in unit["violations"])
+    assert unit["status"] == STATUS_FAIL
+    assert sc["overall"] == STATUS_FAIL
+
+
+def test_real_flat_copy_fails_only_synthlint_on_the_workout_series_line(
+        write_issue, out_dir, ws_issue_pass):
+    """
+    Nothing stubbed, other line. 628 characters lands city_intro's lock exactly
+    and ProhibLint scores it 100, so CharLint and ProhibLint both wave it
+    through and only SynthLint objects.
+    """
+    issue = dict(ws_issue_pass)
+    issue["slots"] = dict(issue["slots"], city_intro=_FLAT_SLOT_628)
+    path = write_issue(issue)
+    sc = run(path, out_dir, ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
+    unit = sc["slots"]["city_intro"]
+    assert unit["char_passed"] is True and unit["char_delta"] == 0
+    assert unit["prohib_passed"] is True and unit["prohib_score"] == 100
+    assert unit["synth_passed"] is False
+    assert unit["synth_score"] < SYNTH_PASS_THRESHOLD
+    assert any("rhythm" in v.lower() for v in unit["violations"])
+    assert unit["status"] == STATUS_FAIL
+    assert sc["overall"] == STATUS_FAIL
+
+
+@pytest.mark.parametrize("prohib_pass, voice_pass, synth_pass, expected", [
+    (True, True, True, STATUS_PASS),
+    (True, True, False, STATUS_FAIL),
+    (True, False, True, STATUS_FAIL),
+    (False, True, True, STATUS_FAIL),
+    (True, False, False, STATUS_FAIL),
+    (False, True, False, STATUS_FAIL),
+    (False, False, True, STATUS_FAIL),
+    (False, False, False, STATUS_FAIL),
+])
+def test_the_magazine_verdict_is_the_three_way_conjunction(
+        write_issue, out_dir, monkeypatch, prohib_pass, voice_pass, synth_pass, expected):
+    """The full truth table, stubbed so it holds however any linter's own
+    thresholds move. Seven of these eight rows die if any one linter is dropped
+    from the conjunction."""
+    monkeypatch.setattr(prohiblint, "run_prohiblint", _stub_prohib_run(prohib_pass))
+    monkeypatch.setattr(voicelint, "run", _stub_voice_run(voice_pass))
+    monkeypatch.setattr(synthlint, "run_synthlint", _stub_synth_run(synth_pass))
+    path = write_issue(magazine_issue_pass())
+    sc = run(path, out_dir)
+    assert {u["status"] for u in sc["sections"].values()} == {expected}
+    assert sc["overall"] == expected
+
+
+@pytest.mark.parametrize("char_ok, prohib_pass, synth_pass, expected", [
+    (True, True, True, STATUS_PASS),
+    (True, True, False, STATUS_FAIL),
+    (True, False, True, STATUS_FAIL),
+    (False, True, True, STATUS_FAIL),
+    (True, False, False, STATUS_FAIL),
+    (False, True, False, STATUS_FAIL),
+    (False, False, True, STATUS_FAIL),
+    (False, False, False, STATUS_FAIL),
+])
+def test_the_workout_series_verdict_is_the_three_way_conjunction(
+        write_issue, out_dir, ws_issue_pass, monkeypatch,
+        char_ok, prohib_pass, synth_pass, expected):
+    """The same table on the other line, with CharLint standing where VoiceLint
+    stands above. `char_ok=False` pushes every slot past its lock — cover_body
+    is range-locked 350-358 and needs the 8-character trip-wire, the rest are
+    point-locked and go over on one. The prose verdicts are stubbed."""
+    monkeypatch.setattr(prohiblint, "run_prohiblint", _stub_prohib_run(prohib_pass))
+    monkeypatch.setattr(synthlint, "run_synthlint", _stub_synth_run(synth_pass))
+    over = {"cover_body": COVER_BODY_OVERFLOW}
+    issue = dict(ws_issue_pass)
+    issue["slots"] = {k: (v if char_ok else v + over.get(k, "x"))
+                      for k, v in issue["slots"].items()}
+    path = write_issue(issue)
+    sc = run(path, out_dir, ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
+    assert {u["status"] for u in sc["slots"].values()} == {expected}
+    assert sc["overall"] == expected
+
+
+# -- the scorecard says so, on both lines -----------------------------------
+
+@pytest.mark.parametrize("ruleset", [MAGAZINE, WORKOUT_SERIES])
+def test_the_scorecard_carries_synth_fields_on_every_evaluated_unit(
+        write_issue, out_dir, ws_issue_pass, ruleset):
+    if ruleset == MAGAZINE:
+        path, kwargs = write_issue(magazine_issue_pass()), {}
+    else:
+        path = write_issue(ws_issue_pass)
+        kwargs = {"ruleset": WORKOUT_SERIES, "locks": str(REAL_LOCKS)}
+    sc = run(path, out_dir, **kwargs)
+    units = sc[sc["unit_kind"] + "s"]
+    assert units
+    for name, unit in units.items():
+        # Named like the pairs already there, not like a special case.
+        assert "synth_score" in unit and "synth_passed" in unit, name
+        assert isinstance(unit["synth_score"], int), name
+        assert unit["synth_passed"] is True, name
+        assert unit["synth_score"] >= SYNTH_PASS_THRESHOLD, name
+    # ... and it survives the JSON round trip like everything else.
+    on_disk = json.loads(
+        (out_dir / orchestrator.scorecard_filename(sc["issue_id"])).read_text(encoding="utf-8"))
+    assert on_disk == sc
+
+
+@pytest.mark.parametrize("ruleset", [MAGAZINE, WORKOUT_SERIES])
+def test_the_linters_block_records_synthlint_on_both_rulesets(
+        write_issue, out_dir, ws_issue_pass, ruleset):
+    if ruleset == MAGAZINE:
+        path, kwargs = write_issue(magazine_issue_pass()), {}
+    else:
+        path = write_issue(ws_issue_pass)
+        kwargs = {"ruleset": WORKOUT_SERIES, "locks": str(REAL_LOCKS)}
+    linters = run(path, out_dir, **kwargs)["linters"]
+    assert linters["synthlint"]["applied"] is True
+    assert linters["synthlint"]["universal"] is True
+    # No ruleset key, because there is no ruleset to record.
+    assert "ruleset" not in linters["synthlint"]
+    assert "reason" not in linters["synthlint"]      # nothing to excuse
+
+
+@pytest.mark.parametrize("ruleset", [MAGAZINE, WORKOUT_SERIES])
+def test_synth_violations_are_blocking_when_synth_failed(
+        write_issue, out_dir, ws_issue_pass, monkeypatch, ruleset):
+    tell = _STUB_TELL
+    if ruleset == MAGAZINE:
+        issue = magazine_issue_pass()
+        target, key = issue["sections"]["Nutrition"], "Nutrition"
+        path, kwargs = write_issue(issue), {}
+    else:
+        issue = ws_issue_pass
+        target, key = issue["slots"]["counter_cafe"], "counter_cafe"
+        path = write_issue(issue)
+        kwargs = {"ruleset": WORKOUT_SERIES, "locks": str(REAL_LOCKS)}
+    monkeypatch.setattr(synthlint, "run_synthlint",
+                        _stub_synth_run(False, score=44, violations=[tell],
+                                        fail_only=target))
+    sc = run(path, out_dir, **kwargs)
+    unit = sc[sc["unit_kind"] + "s"][key]
+    assert tell in unit["violations"]                 # filed on the unit ...
+    assert tell in sc["blocking_violations"]          # ... and it blocked
+    assert tell not in sc["advisory_notes"]
+
+
+@pytest.mark.parametrize("ruleset", [MAGAZINE, WORKOUT_SERIES])
+def test_synth_findings_from_a_passing_unit_stay_advisory(
+        write_issue, out_dir, ws_issue_pass, monkeypatch, ruleset):
+    """
+    The mirror: a SynthLint finding that did NOT fail its unit is a note, and
+    filing it as blocking is how a green run reports a violation count.
+    SynthLint scores several findings a unit can carry and still pass (a single
+    contrastive frame, a single hedge stack), so this is a live case, not a
+    hypothetical one.
+    """
+    note = "A single contrastive frame, priced but not fatal."
+    monkeypatch.setattr(synthlint, "run_synthlint",
+                        _stub_synth_run(True, score=92, violations=[note]))
+    if ruleset == MAGAZINE:
+        path, kwargs = write_issue(magazine_issue_pass()), {}
+    else:
+        path = write_issue(ws_issue_pass)
+        kwargs = {"ruleset": WORKOUT_SERIES, "locks": str(REAL_LOCKS)}
+    sc = run(path, out_dir, **kwargs)
+    assert sc["overall"] == STATUS_PASS
+    assert sc["blocking_violations"] == []
+    assert sc["blocking_violations_total"] == 0
+    assert note in sc["advisory_notes"]
+    assert sc["advisory_notes_total"] >= len(sc[sc["unit_kind"] + "s"])
+
+
+def test_a_missing_section_fails_every_gate_including_synthlint(
+        write_issue, out_dir):
+    """
+    An absent section is EVALUATED and fails, which is not the same state as
+    NOT_EVALUATED. Every gate reads False — none of them None, and none of them
+    True — and there is no score, because no text was ever read. Left
+    unasserted, `synth_passed` on a missing section is free to say the copy
+    that does not exist read fine.
+    """
+    issue = magazine_issue_pass()
+    del issue["sections"]["Culture"]
+    sc = run(write_issue(issue), out_dir)
+    unit = sc["sections"]["Culture"]
+    assert unit["status"] == STATUS_FAIL
+    assert unit["present"] is False
+    assert unit["prohib_passed"] is False
+    assert unit["voice_passed"] is False
+    assert unit["synth_passed"] is False
+    assert unit["synth_score"] is None
+    # One MISSING SECTION message covers all of them: a linter that never saw
+    # any text does not get to file a finding of its own.
+    assert len(unit["violations"]) == 1
+    assert "MISSING SECTION" in unit["violations"][0]
+
+
+# -- truncation: the new field must not be the one that lies ----------------
+
+@pytest.mark.parametrize("ruleset", [MAGAZINE, WORKOUT_SERIES])
+def test_synth_fields_are_null_on_not_evaluated_units(
+        write_issue, out_dir, ws_issue_pass, magazine_issue_second_section_fails, ruleset):
+    """
+    Null, never 0 and never 100 — the same rule the other three already follow.
+    A skipped unit that reports a clean synth_score is a scorecard claiming
+    SynthLint read copy nobody read.
+    """
+    if ruleset == MAGAZINE:
+        path, kwargs = write_issue(magazine_issue_second_section_fails), {}
+    else:
+        issue = dict(ws_issue_pass)
+        issue["slots"] = dict(issue["slots"])
+        issue["slots"]["cover_body"] += COVER_BODY_OVERFLOW
+        path = write_issue(issue)
+        kwargs = {"ruleset": WORKOUT_SERIES, "locks": str(REAL_LOCKS)}
+    sc = run(path, out_dir, fail_fast=True, **kwargs)
+    assert sc["run"]["truncated"] is True
+    assert sc["run"]["not_evaluated"]
+    units = sc[sc["unit_kind"] + "s"]
+    for name in sc["run"]["not_evaluated"]:
+        unit = units[name]
+        assert unit["status"] == STATUS_NOT_EVALUATED, name
+        assert unit["synth_score"] is None, name
+        assert unit["synth_passed"] is None, name
+    # ... and on disk, where a consumer actually reads it.
+    on_disk = json.loads(
+        (out_dir / orchestrator.scorecard_filename(sc["issue_id"])).read_text(encoding="utf-8"))
+    for name in sc["run"]["not_evaluated"]:
+        assert on_disk[sc["unit_kind"] + "s"][name]["synth_score"] is None
+
+
+@pytest.mark.parametrize("ruleset", [MAGAZINE, WORKOUT_SERIES])
+def test_fail_fast_never_runs_synthlint_on_the_units_it_skipped(
+        write_issue, out_dir, ws_issue_pass, magazine_issue_second_section_fails,
+        synth_spy, ruleset):
+    """"Never evaluated" has to mean the work did not happen — for the fourth
+    linter exactly as for the first three."""
+    if ruleset == MAGAZINE:
+        issue = magazine_issue_second_section_fails
+        path, kwargs, container = write_issue(issue), {}, issue["sections"]
+    else:
+        issue = dict(ws_issue_pass)
+        issue["slots"] = dict(issue["slots"])
+        issue["slots"]["cover_body"] += COVER_BODY_OVERFLOW
+        path = write_issue(issue)
+        kwargs = {"ruleset": WORKOUT_SERIES, "locks": str(REAL_LOCKS)}
+        container = issue["slots"]
+    sc = run(path, out_dir, fail_fast=True, **kwargs)
+    for skipped in sc["run"]["not_evaluated"]:
+        assert container[skipped] not in synth_spy, skipped
+    assert len(synth_spy) == sc["run"]["units_evaluated"]
+
+
+def test_a_synth_only_failure_can_trip_fail_fast(write_issue, out_dir, monkeypatch):
+    """The stop is driven by the unit status, so the fourth linter has to be
+    able to cause one on its own."""
+    issue = magazine_issue_pass()
+    monkeypatch.setattr(synthlint, "run_synthlint",
+                        _stub_synth_run(False, score=44, violations=["stubbed tell"],
+                                        fail_only=issue["sections"]["Nutrition"]))
+    path = write_issue(issue)
+    sc = run(path, out_dir, fail_fast=True)
+    assert sc["run"]["truncated_at"] == "Nutrition"
+    assert sc["run"]["not_evaluated"] == [
+        "Supplements", "Recovery", "Culture", "Social", "Nightlife"]
+    assert sc["overall"] == STATUS_FAIL
+
+
+# -- a missing verdict is not a pass, here too ------------------------------
+
+@pytest.mark.parametrize("bad", [
+    {},                                       # no verdict at all
+    {"score": 100},                           # a score but no verdict
+    {"passed": "yes", "score": 100},          # not a boolean
+    None,
+])
+@pytest.mark.parametrize("ruleset", [MAGAZINE, WORKOUT_SERIES])
+def test_a_synthlint_call_that_returns_no_verdict_is_not_a_pass(
+        write_issue, out_dir, ws_issue_pass, monkeypatch, bad, ruleset):
+    monkeypatch.setattr(synthlint, "run_synthlint", lambda text: bad)
+    if ruleset == MAGAZINE:
+        path, kwargs = write_issue(magazine_issue_pass()), {}
+    else:
+        path = write_issue(ws_issue_pass)
+        kwargs = {"ruleset": WORKOUT_SERIES, "locks": str(REAL_LOCKS)}
+    with pytest.raises(orchestrator.EvalHarnessError) as exc:
+        run(path, out_dir, **kwargs)
+    assert "SynthLint" in str(exc.value)
+    assert "not a pass" in str(exc.value)
+
+
+# -- no warnings channel, and none invented ---------------------------------
+
+def test_synthlint_has_no_warnings_channel_and_none_is_invented(
+        write_issue, out_dir, ws_issue_pass):
+    """
+    CharLint's drift mechanism is the only source of `warnings`. SynthLint
+    returns violations / score / passed / flags and nothing else, so a magazine
+    run — where CharLint does not run at all — still reports an empty list.
+    """
+    verdict = synthlint.run_synthlint(magazine_sections_pass()["Training"])
+    assert set(verdict) == {"violations", "score", "passed", "flags"}
+    assert "warnings" not in verdict
+
+    assert run(write_issue(magazine_issue_pass()), out_dir)["warnings"] == []
+    ws = run(write_issue(ws_issue_pass, name="ws.json"), out_dir,
+             ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
+    # Whatever the workout line reports came from CharLint, not from SynthLint.
+    assert all("synth" not in w.lower() for w in ws["warnings"])
+
+
+def test_the_orchestrator_never_hard_codes_synthlints_pass_threshold():
+    """
+    The gate reads `passed` off the verdict; the threshold lives in SynthLint.
+    Writing 84 into this file would let the two disagree silently the day the
+    module moves it.
+    """
+    source = (HERE / "orchestrator.py").read_text(encoding="utf-8")
+    assert str(SYNTH_PASS_THRESHOLD) not in source
+    assert SYNTH_PASS_THRESHOLD == synthlint.synth_config.PASS_THRESHOLD
+
+
+# -- the two real files, end to end, through the CLI ------------------------
+
+MAGAZINE_PASS_FIXTURE = HERE / "fixtures" / "magazine_pass.json"
+
+
+def _cli(*args):
+    return subprocess.run([sys.executable, str(HERE / "orchestrator.py"), *args],
+                          capture_output=True, text=True)
+
+
+def test_the_magazine_positive_control_still_passes_with_four_linters(out_dir):
+    """
+    fixtures/magazine_pass.json is the ONLY proof the magazine ruleset can
+    return PASS at all. Adding a fourth blocking gate must not take that away,
+    so this runs the real file through the real CLI rather than through a unit
+    test of the wiring.
+    """
+    proc = _cli("--issue", str(MAGAZINE_PASS_FIXTURE), "--out-dir", str(out_dir))
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    sc = json.loads(
+        (out_dir / orchestrator.scorecard_filename("FIXTURE-PASS-01")).read_text(encoding="utf-8"))
+    assert sc["overall"] == STATUS_PASS
+    assert len(sc["sections"]) == 7
+    for name, unit in sc["sections"].items():
+        assert unit["status"] == STATUS_PASS, name
+        assert (unit["prohib_score"], unit["voice_score"], unit["synth_score"]) == (100, 100, 100), name
+    assert sc["blocking_violations_total"] == 0
+    assert "Synth" in proc.stdout                    # the column is rendered
+
+
+def test_the_charlint_baselines_still_pass_with_four_linters(
+        write_issue, out_dir, ws_slots_pass, real_locks):
+    """
+    The owner's live Canva template content, through the real CLI. The
+    baselines are length-preserved (see clean_prose), so CharLint still gates
+    them to the character while SynthLint reads the actual shipped strings.
+    """
+    path = write_issue({"issue_id": "SEA.BASELINES", "theme": "Locks",
+                        "slots": ws_slots_pass})
+    proc = _cli("--issue", path, "--ruleset", WORKOUT_SERIES,
+                "--locks", str(REAL_LOCKS), "--out-dir", str(out_dir))
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    sc = json.loads(
+        (out_dir / orchestrator.scorecard_filename("SEA.BASELINES")).read_text(encoding="utf-8"))
+    assert sc["overall"] == STATUS_PASS
+    assert list(sc["slots"]) == charlint.slot_names(real_locks)
+    for name, unit in sc["slots"].items():
+        assert unit["status"] == STATUS_PASS, name
+        assert unit["char_delta"] == 0, name
+        assert unit["synth_score"] == 100, name
+
+    # And the RAW baselines — before clean_prose touches the punctuation —
+    # score 100 on SynthLint too, so the pass above is not an artifact of the
+    # fixture's own transform.
+    for name, spec in real_locks["slots"].items():
+        verdict = synthlint.run_synthlint(spec["baseline"])
+        assert verdict["passed"] is True, name
+        assert verdict["score"] == 100, name
+
+
+# ===========================================================================
 # --fail-fast genuinely stops the work it says it stopped
 # ===========================================================================
 
@@ -1025,7 +1727,7 @@ def test_truncation_reason_describes_what_the_stop_actually_stopped(
 
     issue = dict(ws_issue_pass)
     issue["slots"] = dict(issue["slots"])
-    issue["slots"]["cover_body"] += "x"
+    issue["slots"]["cover_body"] += COVER_BODY_OVERFLOW
     ws_path = write_issue(issue, name="ws.json")
     ws = run(ws_path, out_dir, fail_fast=True,
              ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))["run"]["truncation_reason"]
@@ -1045,7 +1747,7 @@ def test_fail_fast_still_lints_nothing_extra_on_the_workout_series_line(
                         lambda text: (seen.append(text), real(text))[1])
     issue = dict(ws_issue_pass)
     issue["slots"] = dict(issue["slots"])
-    issue["slots"]["cover_body"] += "x"
+    issue["slots"]["cover_body"] += COVER_BODY_OVERFLOW
     path = write_issue(issue)
     sc = run(path, out_dir, fail_fast=True, ruleset=WORKOUT_SERIES, locks=str(REAL_LOCKS))
     assert sc["run"]["truncated_at"] == "cover_body"
@@ -1445,10 +2147,14 @@ def test_run_eval_sh_forwards_ci_flag(out_dir):
     assert proc.stdout.strip().splitlines()[-1] == STATUS_FAIL
 
 
-def test_run_eval_sh_forwards_ruleset_and_locks(write_issue, out_dir, ws_issue_pass):
+def test_run_eval_sh_forwards_ruleset_and_locks(
+        write_issue, out_dir, ws_issue_pass, drifting_locks_file):
+    # The drifting copy, so the DRIFT line below proves the --locks value was
+    # forwarded and read: the shipped file emits no drift of its own (see
+    # test_the_shipped_locks_file_raises_no_drift).
     path = write_issue(ws_issue_pass)
     proc = _sh(path, "--ci", "--ruleset", WORKOUT_SERIES,
-               "--locks", str(REAL_LOCKS), "--out-dir", str(out_dir))
+               "--locks", drifting_locks_file, "--out-dir", str(out_dir))
     assert proc.returncode == 0
     assert proc.stdout.strip().splitlines()[-1] == STATUS_PASS
     assert "[warning] DRIFT" in proc.stdout
