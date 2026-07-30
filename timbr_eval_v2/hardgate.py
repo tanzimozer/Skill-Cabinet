@@ -66,6 +66,25 @@ def _word_count(text):
     return len(text.split())
 
 
+#: Markdown ATX headings, and the bold-only line that writers use in their place.
+_HEADING_RE = re.compile(r"^\s*(?:#{1,6}\s.*|\*\*[^*\n]+\*\*\s*)$", re.MULTILINE)
+
+
+def _body_word_count(text):
+    """Words of actual prose, with headings removed.
+
+    The word-count gate is a proxy for how much the reader gets, and a heading is
+    navigation rather than reading. Counting headings inflates the total by roughly
+    5 words each, which is enough to carry a piece over its own floor: the Taylor
+    Crow v2 draft measures 814 with headings and 778 without, and the 800 floor is
+    between them. Judges score the body, so the gate scores the body too.
+
+    Bold-only lines count as headings because writers reach for them when they
+    should have written an H2, and the structural gate flags that separately.
+    """
+    return _word_count(_HEADING_RE.sub("", text))
+
+
 def _sentences(text):
     return [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
 
@@ -116,13 +135,17 @@ def check_banned_phrases(text):
 
 def check_word_count(text, content_type):
     lo, hi = WORD_COUNT_RANGES.get(content_type, WORD_COUNT_RANGES["unspecified"])
-    wc = _word_count(text)
+    wc = _body_word_count(text)
+    raw = _word_count(text)
     passed = lo <= wc <= hi
+    detail = f"{wc} body words (range [{lo}–{hi}] for '{content_type}')."
+    if raw != wc:
+        detail += f" {raw} including headings."
     return {
         "gate": "word_count",
         "blocking": True,
         "passed": passed,
-        "detail": f"{wc} words (range [{lo}–{hi}] for '{content_type}').",
+        "detail": detail,
     }
 
 
@@ -199,7 +222,8 @@ def run_hardgate(text, content_type="unspecified"):
     warning_failures = [c for c in checks if not c["blocking"] and not c["passed"]]
     return {
         "content_type": content_type,
-        "word_count": _word_count(text),
+        "word_count": _body_word_count(text),
+        "word_count_with_headings": _word_count(text),
         "checks": checks,
         "blocking_failures": blocking_failures,
         "warning_failures": warning_failures,

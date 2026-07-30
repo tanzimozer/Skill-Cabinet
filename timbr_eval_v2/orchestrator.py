@@ -136,7 +136,11 @@ if __name__ == "__main__":
     result = run_eval(text, args.content_type, judge_output)
 
     if args.out:
-        Path(args.out).write_text(json.dumps(result, indent=2))
+        out = Path(args.out)
+        # Callers routinely point --out at a scratch dir that does not exist yet;
+        # crashing on that is a papercut, not a useful error.
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(result, indent=2))
 
     if not args.ci:
         print_report(result)
