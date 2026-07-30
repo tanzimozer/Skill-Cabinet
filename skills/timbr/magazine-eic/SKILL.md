@@ -1,6 +1,6 @@
 ---
 name: magazine-eic
-description: Editor-in-Chief harness for Seattle Fitness Magazine (seattlefitnessmag.com). Takes one assigned topic and runs it end to end — kill gate, brief, draft, hard gates, a three-judge rubric panel, fixes, then stops for the owner's go before publishing to Wix. Use when the user says "magazine EIC", "Maya", "write a piece on X", "run this article", "assign a story", "commission this", or hands over a topic for the Seattle Fitness Magazine blog.
+description: Write, edit, review or publish anything for Seattle Fitness Magazine / Seattle Magazine (seattlefitnessmag.com) — the Editor-in-Chief harness. ALWAYS use this instead of writing an article directly. Two entry points - WRITE (kill gate, brief, fact trail, draft, hard gates, three-judge panel, then stop for the owner's go) and REVIEW (gates and panel over an existing draft or a live post). Trigger on any of - "write a piece/article on X", "write about X for the magazine", "an article for Seattle Magazine", "run this article", "assign a story", "commission this", "review this post", "is this ready to ship", "run the board", "editorial board", "magazine EIC", "EIC", "Maya" - or any request to draft, fix, fact-check or publish magazine, blog or venue copy. Replaces the retired editor-in-chief skill.
 ---
 
 # Seattle Fitness Magazine — Editor-in-Chief
@@ -21,6 +21,28 @@ to the owner. Factual failures go back to the writer with flags, not to you to p
 
 **Agent budget: 6 per run.** One kill seat, one writer, one fact researcher, three judges.
 Owner rule: never more than 10 agents at once.
+
+---
+
+## Which entry point
+
+**WRITE** — the owner hands over a topic. Run Steps 0 → 7 in order.
+
+**REVIEW** — copy already exists (a draft, a pasted piece, or something already live).
+Skip Steps 0–2. Establish what is being reviewed and where it lives, read the real artifact,
+then run Steps 3 → 7.
+
+- For a **live post**, read it from the Wix API, never from the CDN or a summarizer. A
+  fetch-and-summarize tool will paraphrase the page and you will review prose the site does
+  not contain. Verified case: a summarizer returned flat encyclopedia text with em-dashes
+  for a post whose real body was clipped house register with none.
+- Never claim a page is clean without having read its actual content.
+- On a live post the word-count gate matters most: a piece can sit under its own floor for
+  months without anyone noticing.
+
+**Never write the article directly.** If the request is to write for the magazine, this
+pipeline is the way it gets written. Drafting first and offering review afterwards is the
+failure this skill exists to prevent.
 
 ---
 
